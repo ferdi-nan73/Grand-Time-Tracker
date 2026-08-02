@@ -1,0 +1,99 @@
+<style>
+  /*
+   * GTT Dashboard SA v3.2
+   * - Durasi kerja disembunyikan/dihapus dari Dashboard SA.
+   * - Jam digital diperbesar tanpa mengubah header GTT.
+   * - Kartu pelanggaran diberi penanda hanya saat ada pelanggaran.
+   */
+
+  /* Fallback untuk Index lama yang masih memiliki elemen durasi kerja. */
+  #saDashboardPage .work-duration-row {
+    display: none !important;
+  }
+
+  #saDashboardPage .dashboard-live-clock {
+    width: 180px !important;
+    min-width: 180px !important;
+    padding: 14px 16px !important;
+    align-items: center !important;
+    border-radius: 17px !important;
+  }
+
+  #saDashboardPage .dashboard-live-clock strong {
+    font-size: 32px !important;
+    font-weight: 900;
+    letter-spacing: .01em;
+    line-height: 1;
+  }
+
+  #saDashboardPage .dashboard-live-clock span {
+    max-width: 100% !important;
+    margin-top: 7px;
+    font-size: 10px !important;
+    line-height: 1.25;
+    text-align: center !important;
+  }
+
+  #saDashboardPage .home-summary-item.has-violation {
+    border-color: #f2b2ae;
+    background: #fff5f4;
+  }
+
+  #saDashboardPage .home-summary-item.has-violation span,
+  #saDashboardPage .home-summary-item.has-violation strong {
+    color: #b42318;
+  }
+
+  @media (max-width: 560px) {
+    #saDashboardPage .dashboard-header {
+      grid-template-columns: minmax(0, 1fr) 148px !important;
+      gap: 12px !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock {
+      width: 148px !important;
+      min-width: 148px !important;
+      padding: 12px 10px !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock strong {
+      font-size: 28px !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock span {
+      font-size: 9px !important;
+    }
+  }
+
+  @media (max-width: 390px) {
+    #saDashboardPage .dashboard-header {
+      grid-template-columns: minmax(0, 1fr) 132px !important;
+      gap: 9px !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock {
+      width: 132px !important;
+      min-width: 132px !important;
+      padding: 11px 8px !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock strong {
+      font-size: 25px !important;
+    }
+  }
+
+  @media (max-width: 340px) {
+    #saDashboardPage .dashboard-header {
+      grid-template-columns: 1fr !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+
+    #saDashboardPage .dashboard-live-clock strong {
+      font-size: 30px !important;
+    }
+  }
+</style>

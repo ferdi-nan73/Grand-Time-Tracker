@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+  >
+
+  <meta
+    name="theme-color"
+    content="#0D47A1"
+  >
+
+  <meta
+    name="description"
+    content="Grand Time Tracker — Sistem Absensi Karyawan."
+  >
+
+  <title>Grand Time Tracker</title>
+
+  <!-- FAVICON: LOGO 3 -->
+  <link
+    rel="icon"
+    type="image/png"
+    href="https://drive.google.com/thumbnail?id=1RzeuL370oAuqFhQ6r9gikT8IsZNW6kkJ&sz=w128"
+  >
+
+  <?!= include('Styles'); ?>
+  <?!= include('Styles_UI_v2_1'); ?>
+  <?!= include('Styles_UI_v3_EVAL'); ?>
+</head>
+
+<body>
+
+  <main class="app-shell">
+
+    <!-- =====================================================
+         LOGIN PAGE
+    ====================================================== -->
+    <section
+      id="loginPage"
+      class="page active"
+      aria-labelledby="loginTitle"
+    >
+
+      <div class="login-card">
+
+        <!-- LOGO LOGIN: LOGO 1 -->
+        <div class="brand-logo">
+
+          <img
+            src="https://drive.google.com/thumbnail?id=191dhFFbbrroaVUo5TqQ8NDO8TgD3dnaZ&sz=w500"
+            alt="Logo Grand Time Tracker"
+            loading="eager"
+            referrerpolicy="no-referrer"
+          >
+
+        </div>
+
+        <div class="brand-heading">
+
+          <p class="brand-eyebrow">
+            GTT Attendance System
+          </p>
+
+          <h1 id="loginTitle">
+            Grand Time Tracker
+          </h1>
+
+          <p>
+            Sistem Absensi Karyawan
+          </p>
+
+        </div>
+
+        <div class="login-form">
+
+          <label for="pinInput">
+            Masukkan PIN
+          </label>
+
+          <div class="pin-wrapper">
+
+            <input
+              id="pinInput"
+              class="pin-input"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              autocomplete="off"
+              maxlength="4"
+              placeholder="••••"
+              aria-label="Masukkan PIN empat digit"
+              aria-describedby="loginMessage"
+            >
+
+            <button
+              id="togglePinButton"
+              class="toggle-pin-button"
+              type="button"
+              aria-label="Tampilkan atau sembunyikan PIN"
+            >
+              Lihat
+            </button>
+
+          </div>
+
+          <button
+            id="loginButton"
+            class="primary-button"
+            type="button"
+            disabled
+          >
+            Masuk
+          </button>
+
+          <div
+            id="loginMessage"
+            class="system-message"
+            aria-live="polite"
+          ></div>
+
+        </div>
+
+        <div
+          class="validation-panel"
+          aria-label="Status kesiapan sistem"
+        >
+
+          <div class="validation-item">
+
+            <span
+              id="internetIndicator"
+              class="status-dot checking"
+              aria-hidden="true"
+            ></span>
+
+            <div>
+
+              <strong>
+                Internet
+              </strong>
+
+              <small id="internetStatus">
+                Memeriksa koneksi...
+              </small>
+
+            </div>
+
+          </div>
+
+          <div class="validation-item">
+
+            <span
+              id="locationIndicator"
+              class="status-dot checking"
+              aria-hidden="true"
+            ></span>
+
+            <div>
+
+              <strong>
+                Lokasi
+              </strong>
+
+              <small id="locationStatus">
+                Belum diperiksa
+              </small>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <p class="login-footer">
+          Gunakan PIN pribadi Anda untuk masuk.
+        </p>
+
+        <p class="app-version">
+          Grand Time Tracker · Versi 1.0
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         DASHBOARD SA
+    ====================================================== -->
+    <section
+      id="saDashboardPage"
+      class="page sa-dashboard-page"
+      aria-labelledby="saName"
+    >
+
+      <div class="dashboard-brand">
+        <div class="dashboard-brand-identity">
+          <img
+            class="dashboard-brand-logo"
+            src="https://drive.google.com/thumbnail?id=1m0Y0Dvp8zKN54gJ0mGdbfuBAt7HWTh0Y&sz=w500"
+            alt="Logo Grand Time Tracker"
+            loading="eager"
+            referrerpolicy="no-referrer"
+          >
+
+          <div class="dashboard-brand-copy">
+            <strong>GRAND TIME TRACKER (GTT)</strong>
+            <span>GRAND GROUP ATTENDANCE SYSTEM</span>
+          </div>
+        </div>
+
+        <div class="dashboard-header-actions">
+          <button
+            id="saPulangButton"
+            class="checkout-header-button"
+            type="button"
+            aria-label="Absen pulang"
+            title="Absen pulang"
+          >
+            PULANG
+          </button>
+        </div>
+      </div>
+
+      <div class="sa-view-stack">
+
+        <!-- BERANDA -->
+        <section
+          id="saHomeView"
+          class="sa-tab-view active"
+          data-sa-view="home"
+          aria-labelledby="saName"
+        >
+          <header class="dashboard-header">
+            <div class="dashboard-profile">
+              <p class="welcome-label">Selamat datang</p>
+              <h2 id="saName">Nama Karyawan</h2>
+              <p id="saProfile">Jabatan · Outlet</p>
+
+              <div class="profile-meta">
+                <span id="saShiftName">Shift belum tersedia</span>
+                <span class="profile-meta-divider" aria-hidden="true">•</span>
+                <span id="saShiftTime">--:-- - --:--</span>
+              </div>
+            </div>
+
+            <div class="dashboard-live-clock" aria-label="Waktu sekarang">
+              <strong id="headerCurrentTime">00:00:00</strong>
+              <span id="headerCurrentDate">Tanggal</span>
+            </div>
+          </header>
+
+          <section class="clock-card legacy-clock-card" aria-label="Tanggal dan waktu saat ini">
+            <p id="currentDate">Tanggal</p>
+            <strong id="currentTime">00:00:00</strong>
+            <small class="clock-caption">Waktu perangkat</small>
+          </section>
+
+          <section class="status-card attendance-card" aria-labelledby="attendanceCardTitle">
+            <div class="status-card-heading">
+              <div>
+                <p id="attendanceCardTitle">Status Kehadiran</p>
+                <h3 id="attendanceStatus">Belum absen</h3>
+              </div>
+
+              <span
+                id="attendanceStatusBadge"
+                class="attendance-status-badge status-neutral"
+              >—</span>
+            </div>
+
+            <div class="attendance-time-grid">
+              <div class="attendance-time-item">
+                <span>Jam Masuk</span>
+                <strong id="checkInTime">--:--</strong>
+              </div>
+
+              <div class="attendance-time-item">
+                <span>Jam Pulang</span>
+                <strong id="checkOutTime">--:--</strong>
+              </div>
+            </div>
+
+            <div class="work-duration-row">
+              <span>Durasi Kerja Hari Ini</span>
+              <strong id="workDurationToday">00 jam 00 menit</strong>
+            </div>
+
+            <p id="attendanceMessage" class="card-helper-text" aria-live="polite">
+              Silakan melakukan absen masuk.
+            </p>
+
+            <button
+              id="saMainActionButton"
+              class="main-action-button"
+              type="button"
+              disabled
+            >Absen Masuk</button>
+          </section>
+
+          <section id="saWarningArea" class="warning-area" aria-live="assertive" hidden>
+            <article id="saWarningCard" class="warning-card warning-level-warning">
+              <div class="warning-card-icon" aria-hidden="true">⚠</div>
+              <div class="warning-card-content">
+                <p id="saWarningLabel">Peringatan</p>
+                <h3 id="saWarningTitle">Perhatian diperlukan</h3>
+                <p id="saWarningMessage">Tidak ada peringatan aktif.</p>
+                <small id="saWarningMeta"></small>
+              </div>
+
+              <button
+                id="saWarningActionButton"
+                class="warning-action-button"
+                type="button"
+                hidden
+              >Selesaikan Sekarang</button>
+            </article>
+          </section>
+
+          <section class="dashboard-card dashboard-summary-card">
+            <div class="section-heading">
+              <div>
+                <p class="section-eyebrow">Ringkasan Operasional</p>
+                <h3>Status Hari Ini</h3>
+              </div>
+            </div>
+
+            <div class="home-summary-grid">
+              <button class="home-summary-item" type="button" data-open-sa-tab="break">
+                <span>Break</span>
+                <strong id="homeBreakSummary">Belum dimulai</strong>
+              </button>
+
+              <button class="home-summary-item" type="button" data-open-sa-tab="outside">
+                <span>Aktivitas Keluar</span>
+                <strong id="homeOutsideSummary">Tidak aktif</strong>
+              </button>
+
+              <button class="home-summary-item" type="button" data-open-sa-tab="activity">
+                <span>Break 1 / Break 2</span>
+                <strong id="homeActivitySummary">Belum diambil</strong>
+              </button>
+
+              <button class="home-summary-item" type="button" data-open-sa-tab="profile">
+                <span>Pelanggaran</span>
+                <strong id="homeViolationSummary">0 tercatat</strong>
+              </button>
+            </div>
+
+            <div
+              class="home-summary-grid"
+              style="grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px;"
+              aria-label="Detail overbreak hari ini"
+            >
+              <div class="home-summary-item">
+                <span>B1 OVERBREAK</span>
+                <strong id="homeBreak1Overtime">0 menit</strong>
+              </div>
+
+              <div class="home-summary-item">
+                <span>B2 OVERBREAK</span>
+                <strong id="homeBreak2Overtime">0 menit</strong>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- BREAK -->
+        <section
+          id="saBreakView"
+          class="sa-tab-view"
+          data-sa-view="break"
+          aria-labelledby="breakSectionTitle"
+          hidden
+        >
+          <div class="tab-view-heading">
+            <div>
+              <p class="section-eyebrow">Waktu Istirahat</p>
+              <h2 id="breakSectionTitle">Break Time</h2>
+            </div>
+            <span id="breakQuota" class="section-badge">0/2</span>
+          </div>
+
+          <section class="dashboard-card break-card">
+            <div class="break-summary">
+              <div>
+                <span>Status saat ini</span>
+                <strong id="breakStatus">Belum ada sesi istirahat.</strong>
+              </div>
+
+              <div class="break-countdown-box">
+                <span id="breakCountdownLabel">Sisa waktu</span>
+                <strong id="breakCountdown">--:--</strong>
+              </div>
+            </div>
+
+            <div class="break-session-list">
+              <article id="breakSession1Card" class="break-session-card session-available">
+                <div class="break-session-header">
+                  <div>
+                    <span class="break-session-label">Sesi 1</span>
+                    <strong id="breakSession1Status">Belum dimulai</strong>
+                  </div>
+                  <span id="breakSession1Badge" class="session-status-badge">Tersedia</span>
+                </div>
+
+                <div class="break-session-meta">
+                  <span>Mulai: <strong id="breakSession1Start">--:--</strong></span>
+                  <span>Selesai: <strong id="breakSession1End">--:--</strong></span>
+                </div>
+
+                <button
+                  id="breakSession1Button"
+                  class="secondary-action-button"
+                  type="button"
+                  disabled
+                >Mulai Sesi 1</button>
+              </article>
+
+              <article id="breakSession2Card" class="break-session-card session-locked">
+                <div class="break-session-header">
+                  <div>
+                    <span class="break-session-label">Sesi 2</span>
+                    <strong id="breakSession2Status">Terkunci</strong>
+                  </div>
+                  <span id="breakSession2Badge" class="session-status-badge">Terkunci</span>
+                </div>
+
+                <div class="break-session-meta">
+                  <span>Mulai: <strong id="breakSession2Start">--:--</strong></span>
+                  <span>Selesai: <strong id="breakSession2End">--:--</strong></span>
+                </div>
+
+                <button
+                  id="breakSession2Button"
+                  class="secondary-action-button"
+                  type="button"
+                  disabled
+                >Mulai Sesi 2</button>
+              </article>
+            </div>
+
+            <p id="breakRuleMessage" class="card-helper-text">
+              Sesi 2 hanya dapat dimulai setelah Sesi 1 selesai.
+            </p>
+          </section>
+        </section>
+
+        <!-- TUGAS LUAR -->
+        <section
+          id="saOutsideDutyView"
+          class="sa-tab-view"
+          data-sa-view="outside"
+          aria-labelledby="outsideDutyTitle"
+          hidden
+        >
+          <div class="tab-view-heading">
+            <div>
+              <p class="section-eyebrow">Aktivitas Operasional</p>
+          <h2 id="outsideDutyTitle">Aktivitas Keluar</h2>
+            </div>
+            <span id="outsideDutyBadge" class="section-badge status-neutral">Tidak aktif</span>
+          </div>
+
+          <section class="dashboard-card outside-duty-card">
+            <div id="outsideDutyEmptyState" class="module-empty-state">
+              Tidak ada aktivitas keluar yang sedang berlangsung.
+            </div>
+
+            <div id="outsideDutyForm" class="outside-duty-form">
+              <label for="outsideDutyDestinationInput">Tujuan</label>
+              <input
+                id="outsideDutyDestinationInput"
+                type="text"
+                maxlength="120"
+                placeholder="Pilih atau tulis outlet/lokasi tujuan"
+                disabled
+              >
+
+              <label for="outsideDutyNoteInput">Keperluan</label>
+              <textarea
+                id="outsideDutyNoteInput"
+                rows="3"
+                maxlength="250"
+                placeholder="Contoh: ambil barang, antar barang, ke gudang"
+                disabled
+              ></textarea>
+            </div>
+
+            <div id="outsideDutyActiveState" class="outside-duty-active" hidden>
+              <div class="outside-duty-info">
+                <span>Tujuan</span>
+                <strong id="outsideDutyDestination">—</strong>
+              </div>
+
+              <div class="outside-duty-meta">
+                <span>Keluar: <strong id="outsideDutyStartTime">--:--</strong></span>
+                <span>Durasi: <strong id="outsideDutyDuration">00:00</strong></span>
+              </div>
+            </div>
+
+            <button
+              id="outsideDutyActionButton"
+              class="secondary-action-button"
+              type="button"
+              disabled
+            >Mulai Aktivitas</button>
+
+            <div class="activity-history-inline">
+              <div class="section-heading">
+                <div>
+                  <p class="section-eyebrow">Riwayat Hari Ini</p>
+                  <h3>Catatan Aktivitas</h3>
+                </div>
+              </div>
+              <div id="outsideActivityHistoryMirror" class="module-empty-state">
+                Belum ada aktivitas keluar.
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- AKTIVITAS -->
+        <section
+          id="saActivityView"
+          class="sa-tab-view"
+          data-sa-view="activity"
+          aria-labelledby="activitySectionTitle"
+          hidden
+        >
+          <div class="tab-view-heading">
+            <div>
+              <p class="section-eyebrow">Riwayat Hari Ini</p>
+              <h2 id="activitySectionTitle">Aktivitas</h2>
+            </div>
+            <span id="dailyActivityCount" class="section-badge">0</span>
+          </div>
+
+          <section class="dashboard-card activity-card">
+            <div id="dailyActivity" class="activity-timeline empty-state">
+              Belum ada aktivitas.
+            </div>
+          </section>
+        </section>
+
+        <!-- PROFIL -->
+        <section
+          id="saProfileView"
+          class="sa-tab-view"
+          data-sa-view="profile"
+          aria-labelledby="saProfileTitle"
+          hidden
+        >
+          <div class="tab-view-heading">
+            <div>
+              <p class="section-eyebrow">Informasi Pengguna</p>
+              <h2 id="saProfileTitle">Profil</h2>
+            </div>
+          </div>
+
+          <section class="dashboard-card profile-detail-card">
+            <dl class="profile-detail-list">
+              <div><dt>Nama</dt><dd id="profileName">Nama Karyawan</dd></div>
+              <div><dt>SA ID</dt><dd id="profileSaId">—</dd></div>
+              <div><dt>Jabatan</dt><dd id="profilePosition">—</dd></div>
+              <div><dt>Outlet</dt><dd id="profileOutlet">—</dd></div>
+              <div><dt>Shift</dt><dd id="profileShift">—</dd></div>
+              <div><dt>Status Akun</dt><dd id="profileAccountStatus">—</dd></div>
+            </dl>
+          </section>
+
+          <section id="sanctionSummaryCard" class="dashboard-card sanction-card">
+            <div class="section-heading">
+              <div>
+                <p class="section-eyebrow">Catatan Kedisiplinan</p>
+                <h3>Sanksi dan Pelanggaran</h3>
+              </div>
+              <span id="sanctionCount" class="section-badge">0</span>
+            </div>
+
+            <div id="sanctionEmptyState" class="module-empty-state">
+              Tidak ada pelanggaran yang tercatat.
+            </div>
+
+            <div id="sanctionLatestItem" class="sanction-latest-item" hidden>
+              <strong id="sanctionLatestTitle">Pelanggaran istirahat</strong>
+              <p id="sanctionLatestDescription">Detail pelanggaran akan tampil di sini.</p>
+              <span id="sanctionLatestStatus">Tercatat</span>
+            </div>
+
+            <button
+              id="openSanctionButton"
+              class="text-action-button"
+              type="button"
+              disabled
+            >Lihat Riwayat</button>
+          </section>
+
+          <button
+            class="logout-button profile-logout-button"
+            type="button"
+            data-action="logout"
+          >Keluar dari Aplikasi</button>
+        </section>
+
+      </div>
+
+      <nav class="sa-bottom-navigation" aria-label="Navigasi Dashboard SA">
+        <button class="sa-nav-button active" type="button" data-sa-tab="home" aria-current="page">
+          <span class="sa-nav-icon" aria-hidden="true">⌂</span>
+          <span>Beranda</span>
+        </button>
+
+        <button id="breakStatusIndicator" class="sa-nav-button break-status-indicator" type="button" disabled aria-label="Indikator status break">
+          <span class="sa-nav-icon" aria-hidden="true">☕</span>
+          <span id="breakIndicatorLabel">Tidak Break</span>
+        </button>
+
+        <button class="sa-nav-button" type="button" data-sa-tab="outside">
+          <span class="sa-nav-icon" aria-hidden="true">↗</span>
+          <span>Aktivitas</span>
+        </button>
+
+        <button class="sa-nav-button" type="button" data-sa-tab="profile">
+          <span class="sa-nav-icon" aria-hidden="true">◉</span>
+          <span>Profil</span>
+        </button>
+      </nav>
+
+      <footer class="dashboard-footer">Grand Time Tracker · GTT</footer>
+
+    </section>
+
+
+    <!-- =====================================================
+         DASHBOARD ADMIN
+    ====================================================== -->
+    <section
+      id="adminDashboardPage"
+      class="page"
+      aria-labelledby="adminName"
+    >
+
+      <div class="dashboard-brand">
+
+        <div class="dashboard-brand-identity">
+
+          <!-- LOGO DASHBOARD: LOGO 2 -->
+          <img
+            class="dashboard-brand-logo"
+            src="https://drive.google.com/thumbnail?id=1m0Y0Dvp8zKN54gJ0mGdbfuBAt7HWTh0Y&sz=w500"
+            alt="Logo Grand Time Tracker"
+            loading="eager"
+            referrerpolicy="no-referrer"
+          >
+
+          <div class="dashboard-brand-copy">
+
+            <strong>
+              Grand Time Tracker
+            </strong>
+
+            <span>
+              Administrator Panel
+            </span>
+
+          </div>
+
+        </div>
+
+        <span class="role-badge role-badge-admin">
+          Admin
+        </span>
+
+      </div>
+
+      <header class="dashboard-header">
+
+        <div>
+
+          <p class="welcome-label">
+            Dashboard Admin
+          </p>
+
+          <h2 id="adminName">
+            Nama Admin
+          </h2>
+
+          <p id="adminProfile">
+            Jabatan · Outlet
+          </p>
+
+        </div>
+
+        <button
+          class="logout-button"
+          type="button"
+          data-action="logout"
+          aria-label="Keluar dari aplikasi"
+        >
+          Keluar
+        </button>
+
+      </header>
+
+      <section
+        class="summary-grid"
+        aria-label="Ringkasan kehadiran"
+      >
+
+        <article class="summary-card summary-present">
+
+          <span>
+            Hadir
+          </span>
+
+          <strong id="totalPresent">
+            0
+          </strong>
+
+        </article>
+
+        <article class="summary-card summary-break">
+
+          <span>
+            Istirahat
+          </span>
+
+          <strong id="totalBreak">
+            0
+          </strong>
+
+        </article>
+
+        <article class="summary-card summary-late">
+
+          <span>
+            Terlambat
+          </span>
+
+          <strong id="totalLate">
+            0
+          </strong>
+
+        </article>
+
+        <article class="summary-card summary-absent">
+
+          <span>
+            Belum Hadir
+          </span>
+
+          <strong id="totalAbsent">
+            0
+          </strong>
+
+        </article>
+
+      </section>
+
+      <section class="dashboard-card">
+
+        <h3>
+          Menu Admin
+        </h3>
+
+        <div class="admin-menu-grid">
+
+          <button
+            type="button"
+            disabled
+          >
+
+            <span class="admin-menu-icon">
+              ◎
+            </span>
+
+            <span>
+              Monitoring SA
+            </span>
+
+          </button>
+
+          <button
+            type="button"
+            disabled
+          >
+
+            <span class="admin-menu-icon">
+              ◇
+            </span>
+
+            <span>
+              Kelola Karyawan
+            </span>
+
+          </button>
+
+          <button
+            type="button"
+            disabled
+          >
+
+            <span class="admin-menu-icon">
+              ▤
+            </span>
+
+            <span>
+              Laporan
+            </span>
+
+          </button>
+
+          <button
+            type="button"
+            disabled
+          >
+
+            <span class="admin-menu-icon">
+              #
+            </span>
+
+            <span>
+              Generate PIN
+            </span>
+
+          </button>
+
+        </div>
+
+      </section>
+
+      <section class="dashboard-card">
+
+        <h3>
+          Aktivitas Terbaru
+        </h3>
+
+        <div
+          id="recentActivity"
+          class="empty-state"
+        >
+          Belum ada aktivitas.
+        </div>
+
+      </section>
+
+      <footer class="dashboard-footer">
+        Grand Time Tracker · Administrator
+      </footer>
+
+    </section>
+
+  </main>
+
+  <?!= include('Scripts'); ?>
+  <?!= include('Scripts_UI_v2_1'); ?>
+  <?!= include('Scripts_UI_v3_EVAL'); ?>
+
+</body>
+</html>
