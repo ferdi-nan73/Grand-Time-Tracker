@@ -2,7 +2,7 @@
  * =====================================================
  * GRAND TIME TRACKER — GTT
  * Module : GTT-08 Break Time Engine
- * Version: 2.1.4
+ * Version: 2.2.0
  * Status : STABLE — FIXED DEPENDENCY DIAGNOSTICS
  * =====================================================
  */
@@ -55,7 +55,7 @@ function selesaiBreak2(pinInput) {
  * @return {Object}
  */
 function mulaiBreak_(pinInput, nomorBreak) {
-  const lock = LockService.getScriptLock();
+  var lock = LockService.getScriptLock();
 
   try {
     lock.waitLock(10000);
@@ -64,13 +64,13 @@ function mulaiBreak_(pinInput, nomorBreak) {
       throw new Error('Nomor break tidak valid.');
     }
 
-    const konteks = ambilKonteksBreak_(pinInput);
+    var konteks = ambilKonteksBreak_(pinInput);
 
     if (!konteks.success) {
       return konteks;
     }
 
-    const {
+    var {
       pengguna,
       spreadsheet,
       sheetLog,
@@ -81,7 +81,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       pengaturan
     } = konteks.data;
 
-    const hasilAbsensi = cariAbsensiAktifHariIni_(
+    var hasilAbsensi = cariAbsensiAktifHariIni_(
       spreadsheet,
       pengguna.pin,
       tanggalHariIni,
@@ -98,7 +98,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       };
     }
 
-    const dataLog = cariLogIstirahatHariIni_(
+    var dataLog = cariLogIstirahatHariIni_(
       sheetLog,
       headerMap,
       pengguna.pin,
@@ -107,7 +107,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
     );
 
     if (nomorBreak === 1) {
-      const validasiBreak1 = validasiMulaiBreak1_(
+      var validasiBreak1 = validasiMulaiBreak1_(
         dataLog,
         headerMap,
         hasilAbsensi,
@@ -122,7 +122,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
     }
 
     if (nomorBreak === 2) {
-      const validasiBreak2 = validasiMulaiBreak2_(
+      var validasiBreak2 = validasiMulaiBreak2_(
         dataLog,
         headerMap,
         sekarang,
@@ -135,7 +135,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       }
     }
 
-    const jumlahSedangBreak = hitungSedangBreakOutlet_(
+    var jumlahSedangBreak = hitungSedangBreakOutlet_(
       sheetLog,
       headerMap,
       pengguna.outlet,
@@ -143,7 +143,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       zonaWaktu
     );
 
-    const maxIstirahat = pengaturan.maxBreakBersamaan;
+    var maxIstirahat = pengaturan.maxBreakBersamaan;
 
     if (jumlahSedangBreak >= maxIstirahat) {
       return {
@@ -163,7 +163,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       };
     }
 
-    let nomorBaris;
+    var nomorBaris;
 
     if (!dataLog.ditemukan) {
       nomorBaris = buatBarisLogIstirahatBaru_(
@@ -177,7 +177,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
       nomorBaris = dataLog.nomorBaris;
     }
 
-    const namaKolomMulai =
+    var namaKolomMulai =
       nomorBreak === 1 ? 'S1 MULAI' : 'S2 MULAI';
 
     sheetLog
@@ -190,12 +190,12 @@ function mulaiBreak_(pinInput, nomorBreak) {
 
     SpreadsheetApp.flush();
 
-    const durasiBreak =
+    var durasiBreak =
       nomorBreak === 1
         ? pengaturan.durasiBreak1
         : pengaturan.durasiBreak2;
 
-    const estimasiSelesai = new Date(
+    var estimasiSelesai = new Date(
       sekarang.getTime() + durasiBreak * 60000
     );
 
@@ -270,7 +270,7 @@ function mulaiBreak_(pinInput, nomorBreak) {
  * @return {Object}
  */
 function selesaiBreak_(pinInput, nomorBreak) {
-  const lock = LockService.getScriptLock();
+  var lock = LockService.getScriptLock();
 
   try {
     lock.waitLock(10000);
@@ -279,13 +279,13 @@ function selesaiBreak_(pinInput, nomorBreak) {
       throw new Error('Nomor break tidak valid.');
     }
 
-    const konteks = ambilKonteksBreak_(pinInput);
+    var konteks = ambilKonteksBreak_(pinInput);
 
     if (!konteks.success) {
       return konteks;
     }
 
-    const {
+    var {
       pengguna,
       sheetLog,
       headerMap,
@@ -295,7 +295,7 @@ function selesaiBreak_(pinInput, nomorBreak) {
       pengaturan
     } = konteks.data;
 
-    const dataLog = cariLogIstirahatHariIni_(
+    var dataLog = cariLogIstirahatHariIni_(
       sheetLog,
       headerMap,
       pengguna.pin,
@@ -312,37 +312,37 @@ function selesaiBreak_(pinInput, nomorBreak) {
       };
     }
 
-    const namaKolomMulai =
+    var namaKolomMulai =
       nomorBreak === 1 ? 'S1 MULAI' : 'S2 MULAI';
 
-    const namaKolomSelesai =
+    var namaKolomSelesai =
       nomorBreak === 1 ? 'S1 SELESAI' : 'S2 SELESAI';
 
-    const namaKolomDurasi =
+    var namaKolomDurasi =
       nomorBreak === 1 ? 'S1 DURASI' : 'S2 DURASI';
 
-    const namaKolomOvertime =
+    var namaKolomOvertime =
       nomorBreak === 1 ? 'S1 OVERTIME' : 'S2 OVERTIME';
 
-    const namaKolomStatus =
+    var namaKolomStatus =
       nomorBreak === 1 ? 'S1 STATUS' : 'S2 STATUS';
 
-    const namaKolomSanksi =
+    var namaKolomSanksi =
       nomorBreak === 1 ? 'S1 SANKSI' : 'S2 SANKSI';
 
-    const rangeBaris = sheetLog.getRange(
+    var rangeBaris = sheetLog.getRange(
       dataLog.nomorBaris,
       1,
       1,
       sheetLog.getLastColumn()
     );
 
-    const nilaiBaris = rangeBaris.getValues()[0];
+    var nilaiBaris = rangeBaris.getValues()[0];
 
-    const waktuMulai =
+    var waktuMulai =
       nilaiBaris[headerMap[namaKolomMulai]];
 
-    const waktuSelesaiLama =
+    var waktuSelesaiLama =
       nilaiBaris[headerMap[namaKolomSelesai]];
 
     if (!(waktuMulai instanceof Date)) {
@@ -373,27 +373,27 @@ function selesaiBreak_(pinInput, nomorBreak) {
       };
     }
 
-    const durasiMenit = hitungDurasiMenit_(
+    var durasiMenit = hitungDurasiMenit_(
       waktuMulai,
       sekarang
     );
 
-    const batasDurasi =
+    var batasDurasi =
       nomorBreak === 1
         ? pengaturan.durasiBreak1
         : pengaturan.durasiBreak2;
 
-    const lewatDurasiMenit = Math.max(
+    var lewatDurasiMenit = Math.max(
       0,
       durasiMenit - batasDurasi
     );
 
-    const overbreakMenit = Math.max(
+    var overbreakMenit = Math.max(
       0,
       lewatDurasiMenit - pengaturan.toleransiOverbreak
     );
 
-    const evaluasi = evaluasiOverbreak_(
+    var evaluasi = evaluasiOverbreak_(
       lewatDurasiMenit,
       overbreakMenit,
       pengaturan.toleransiOverbreak,
@@ -515,22 +515,22 @@ function selesaiBreak_(pinInput, nomorBreak) {
  * Mengambil konteks umum Break Time.
  */
 function ambilKonteksBreak_(pinInput) {
-  const hasilLogin = validasiLoginPin(pinInput);
+  var hasilLogin = validasiLoginPin(pinInput);
 
   if (!hasilLogin.success) {
     return hasilLogin;
   }
 
-  const pengguna = Object.assign({}, hasilLogin.data, {
+  var pengguna = Object.assign({}, hasilLogin.data, {
     pin: String(
       (hasilLogin.data && hasilLogin.data.pin) || pinInput || ''
     ).trim()
   });
 
-  const spreadsheet =
+  var spreadsheet =
     SpreadsheetApp.getActiveSpreadsheet();
 
-  const sheetLog =
+  var sheetLog =
     spreadsheet.getSheetByName('LOG_ISTIRAHAT');
 
   if (!sheetLog) {
@@ -542,23 +542,23 @@ function ambilKonteksBreak_(pinInput) {
     };
   }
 
-  const headerMap =
+  var headerMap =
     ambilHeaderMapLogIstirahat_(sheetLog);
 
-  const zonaWaktu =
+  var zonaWaktu =
     spreadsheet.getSpreadsheetTimeZone();
 
-  const sekarang = typeof gttSekarang_ === 'function' 
+  var sekarang = typeof gttSekarang_ === 'function' 
     ? gttSekarang_(pengguna.pin) 
     : new Date();
 
-  const tanggalHariIni = Utilities.formatDate(
+  var tanggalHariIni = Utilities.formatDate(
     sekarang,
     zonaWaktu,
     'yyyy-MM-dd'
   );
 
-  const pengaturan =
+  var pengaturan =
     ambilPengaturanBreak_();
 
   return {
@@ -581,7 +581,7 @@ function ambilKonteksBreak_(pinInput) {
  * Memvalidasi header LOG_ISTIRAHAT.
  */
 function ambilHeaderMapLogIstirahat_(sheet) {
-  const jumlahKolom = sheet.getLastColumn();
+  var jumlahKolom = sheet.getLastColumn();
 
   if (jumlahKolom === 0) {
     throw new Error(
@@ -589,12 +589,12 @@ function ambilHeaderMapLogIstirahat_(sheet) {
     );
   }
 
-  const daftarHeader = sheet
+  var daftarHeader = sheet
     .getRange(1, 1, 1, jumlahKolom)
     .getDisplayValues()[0]
     .map(normalisasiHeader_);
 
-  const kolomWajib = [
+  var kolomWajib = [
     'ID',
     'TANGGAL',
     'PIN',
@@ -616,7 +616,7 @@ function ambilHeaderMapLogIstirahat_(sheet) {
     'TOTAL SANKSI'
   ];
 
-  const headerMap = {};
+  var headerMap = {};
 
   daftarHeader.forEach((namaHeader, index) => {
     if (namaHeader) {
@@ -624,7 +624,7 @@ function ambilHeaderMapLogIstirahat_(sheet) {
     }
   });
 
-  const kolomTidakAda = kolomWajib.filter(
+  var kolomTidakAda = kolomWajib.filter(
     namaKolom =>
       headerMap[namaKolom] === undefined
   );
@@ -644,10 +644,10 @@ function ambilHeaderMapLogIstirahat_(sheet) {
  * Membaca setting Break Time.
  */
 function ambilPengaturanBreak_() {
-  const spreadsheet =
+  var spreadsheet =
     SpreadsheetApp.getActiveSpreadsheet();
 
-  const sheet =
+  var sheet =
     spreadsheet.getSheetByName('MASTER_SETTING');
 
   if (!sheet) {
@@ -656,7 +656,7 @@ function ambilPengaturanBreak_() {
     );
   }
 
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) {
     throw new Error(
@@ -664,12 +664,12 @@ function ambilPengaturanBreak_() {
     );
   }
 
-  const jumlahKolom = Math.min(
+  var jumlahKolom = Math.min(
     3,
     sheet.getLastColumn()
   );
 
-  const data = sheet
+  var data = sheet
     .getRange(
       2,
       1,
@@ -678,10 +678,10 @@ function ambilPengaturanBreak_() {
     )
     .getDisplayValues();
 
-  const settingMap = {};
+  var settingMap = {};
 
   data.forEach(baris => {
-    const parameter =
+    var parameter =
       normalisasiHeader_(baris[0]);
 
     if (!parameter) return;
@@ -692,49 +692,49 @@ function ambilPengaturanBreak_() {
     };
   });
 
-  const durasiBreak1 =
+  var durasiBreak1 =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - DURASI BREAK 1 (MENIT)'
     );
 
-  const durasiBreak2 =
+  var durasiBreak2 =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - DURASI BREAK 2 (MENIT)'
     );
 
-  const batasAkhirBreak2Item =
+  var batasAkhirBreak2Item =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - BATAS AKHIR BREAK 2'
     );
 
-  const toleransiOverbreak =
+  var toleransiOverbreak =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - TOLERANSI OVERBREAK (MENIT)'
     );
 
-  const reminder =
+  var reminder =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - REMINDER BREAK (MENIT)'
     );
 
-  const sanksi =
+  var sanksi =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - SANKSI OVERBREAK / BREAK (RUPIAH)'
     );
 
-  const maxBreakBersamaan =
+  var maxBreakBersamaan =
     ambilItemSettingBreak_(
       settingMap,
       'BREAK - MAKSIMAL SA BREAK BERSAMAAN'
     );
 
-  const jedaMasukKeBreak1 =
+  var jedaMasukKeBreak1 =
     ambilNilaiSettingBreak_(
       settingMap,
       [
@@ -744,7 +744,7 @@ function ambilPengaturanBreak_() {
       true
     );
 
-  const jedaBreak1KeBreak2 =
+  var jedaBreak1KeBreak2 =
     ambilNilaiSettingBreak_(
       settingMap,
       [
@@ -754,7 +754,7 @@ function ambilPengaturanBreak_() {
       true
     );
 
-  const minimalSisaKerjaBreak2 =
+  var minimalSisaKerjaBreak2 =
     ambilNilaiSettingBreak_(
       settingMap,
       [
@@ -764,7 +764,7 @@ function ambilPengaturanBreak_() {
       true
     );
 
-  const jamPulangNormal =
+  var jamPulangNormal =
     ambilItemSettingBreak_(
       settingMap,
       'ABSENSI - JAM PULANG NORMAL'
@@ -870,7 +870,7 @@ function ambilPengaturanBreak_() {
  * Mengambil satu parameter MASTER_SETTING.
  */
 function ambilItemSettingBreak_(settingMap, namaParameter) {
-  const nama = normalisasiHeader_(namaParameter);
+  var nama = normalisasiHeader_(namaParameter);
 
   if (
     !Object.prototype.hasOwnProperty.call(
@@ -896,13 +896,13 @@ function ambilNilaiSettingBreak_(
   daftarNama,
   wajib
 ) {
-  const harusAda = wajib !== false;
+  var harusAda = wajib !== false;
 
-  for (let index = 0;
+  for (var index = 0;
        index < daftarNama.length;
        index++) {
 
-    const nama =
+    var nama =
       normalisasiHeader_(daftarNama[index]);
 
     if (
@@ -933,7 +933,7 @@ function validasiAngkaSetting_(
   nilai,
   namaParameter
 ) {
-  const angka = Number(
+  var angka = Number(
     String(nilai)
       .replace(/\./g, '')
       .replace(/,/g, '')
@@ -955,7 +955,7 @@ function validasiAngkaSetting_(
 }
 
 function validasiAngkaPositifSetting_(nilai, namaParameter) {
-  const angka = validasiAngkaSetting_(nilai, namaParameter);
+  var angka = validasiAngkaSetting_(nilai, namaParameter);
 
   if (!Number.isInteger(angka) || angka < 1) {
     throw new Error(
@@ -973,10 +973,10 @@ function validasiFormatWaktuSetting_(
   nilai,
   namaParameter
 ) {
-  const teks =
+  var teks =
     String(nilai || '').trim();
 
-  const hasil =
+  var hasil =
     teks.match(/^(\d{1,2}):(\d{2})$/);
 
   if (!hasil) {
@@ -987,8 +987,8 @@ function validasiFormatWaktuSetting_(
     );
   }
 
-  const jam = Number(hasil[1]);
-  const menit = Number(hasil[2]);
+  var jam = Number(hasil[1]);
+  var menit = Number(hasil[2]);
 
   if (
     jam < 0 ||
@@ -1019,7 +1019,7 @@ function cariAbsensiAktifHariIni_(
   tanggalHariIni,
   zonaWaktu
 ) {
-  const sheet =
+  var sheet =
     spreadsheet.getSheetByName(
       'ABSENSI_HARIAN'
     );
@@ -1030,10 +1030,10 @@ function cariAbsensiAktifHariIni_(
     );
   }
 
-  const headerMap =
+  var headerMap =
     ambilHeaderMapAbsensi_(sheet);
 
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) {
     return {
@@ -1041,7 +1041,7 @@ function cariAbsensiAktifHariIni_(
     };
   }
 
-  const data = sheet
+  var data = sheet
     .getRange(
       2,
       1,
@@ -1050,30 +1050,30 @@ function cariAbsensiAktifHariIni_(
     )
     .getValues();
 
-  for (let index = 0;
+  for (var index = 0;
        index < data.length;
        index++) {
 
-    const baris = data[index];
+    var baris = data[index];
 
-    const pinData = String(
+    var pinData = String(
       baris[headerMap['PIN']] || ''
     ).trim();
 
-    const tanggalData =
+    var tanggalData =
       normalisasiTanggalAbsensi_(
         baris[headerMap['TANGGAL']],
         zonaWaktu
       );
 
-    const statusKehadiran =
+    var statusKehadiran =
       normalisasiHeader_(
         baris[
           headerMap['STATUS KEHADIRAN']
         ]
       );
 
-    const statusDiizinkan = [
+    var statusDiizinkan = [
       'HADIR',
       'HADIR PENUH',
       '1/2 HARI',
@@ -1113,7 +1113,7 @@ function cariLogIstirahatHariIni_(
   tanggalHariIni,
   zonaWaktu
 ) {
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) {
     return {
@@ -1121,7 +1121,7 @@ function cariLogIstirahatHariIni_(
     };
   }
 
-  const data = sheet
+  var data = sheet
     .getRange(
       2,
       1,
@@ -1130,17 +1130,17 @@ function cariLogIstirahatHariIni_(
     )
     .getValues();
 
-  for (let index = 0;
+  for (var index = 0;
        index < data.length;
        index++) {
 
-    const baris = data[index];
+    var baris = data[index];
 
-    const pinData = String(
+    var pinData = String(
       baris[headerMap['PIN']] || ''
     ).trim();
 
-    const tanggalData =
+    var tanggalData =
       normalisasiTanggalAbsensi_(
         baris[headerMap['TANGGAL']],
         zonaWaktu
@@ -1173,22 +1173,22 @@ function buatBarisLogIstirahatBaru_(
   sekarang,
   zonaWaktu
 ) {
-  const nomorBaris =
+  var nomorBaris =
     sheet.getLastRow() + 1;
 
-  const jumlahKolom =
+  var jumlahKolom =
     sheet.getLastColumn();
 
-  const output =
+  var output =
     new Array(jumlahKolom).fill('');
 
-  const idLog = buatIdLogIstirahat_(
+  var idLog = buatIdLogIstirahat_(
     pengguna.pin,
     sekarang,
     zonaWaktu
   );
 
-  const dataBaru = {
+  var dataBaru = {
     'ID': idLog,
     'TANGGAL':
       buatTanggalTanpaJam_(sekarang),
@@ -1243,19 +1243,19 @@ function validasiMulaiBreak1_(
   pengaturan,
   zonaWaktu
 ) {
-  const baris = dataLog.ditemukan
+  var baris = dataLog.ditemukan
     ? dataLog.data
     : null;
 
-  const s1Mulai = baris
+  var s1Mulai = baris
     ? baris[headerMap['S1 MULAI']]
     : null;
 
-  const s1Selesai = baris
+  var s1Selesai = baris
     ? baris[headerMap['S1 SELESAI']]
     : null;
 
-  const s2Mulai = baris
+  var s2Mulai = baris
     ? baris[headerMap['S2 MULAI']]
     : null;
 
@@ -1312,11 +1312,11 @@ function validasiMulaiBreak2_(
     };
   }
 
-  const baris = dataLog.data;
-  const s1Mulai = baris[headerMap['S1 MULAI']];
-  const s1Selesai = baris[headerMap['S1 SELESAI']];
-  const s2Mulai = baris[headerMap['S2 MULAI']];
-  const s2Selesai = baris[headerMap['S2 SELESAI']];
+  var baris = dataLog.data;
+  var s1Mulai = baris[headerMap['S1 MULAI']];
+  var s1Selesai = baris[headerMap['S1 SELESAI']];
+  var s2Mulai = baris[headerMap['S2 MULAI']];
+  var s2Selesai = baris[headerMap['S2 SELESAI']];
 
   if (!(s1Mulai instanceof Date)) {
     return {
@@ -1366,7 +1366,7 @@ function validasiMulaiBreak2_(
     };
   }
 
-  const validasiSisaKerja =
+  var validasiSisaKerja =
     validasiMinimalSisaKerjaBreak2_(
       sekarang,
       pengaturan,
@@ -1399,7 +1399,7 @@ function validasiJedaAktivitasBreak_(
   code,
   templatePesan
 ) {
-  const waktuDasarNormal =
+  var waktuDasarNormal =
     normalisasiWaktuAktivitasBreak_(
       waktuDasar,
       sekarang,
@@ -1416,12 +1416,12 @@ function validasiJedaAktivitasBreak_(
     };
   }
 
-  const tersediaPada = new Date(
+  var tersediaPada = new Date(
     waktuDasarNormal.getTime() +
     jedaMenit * 60000
   );
 
-  const sisaMilidetik =
+  var sisaMilidetik =
     tersediaPada.getTime() - sekarang.getTime();
 
   if (sisaMilidetik <= 0) {
@@ -1439,11 +1439,11 @@ function validasiJedaAktivitasBreak_(
     };
   }
 
-  const sisaTungguMenit = Math.ceil(
+  var sisaTungguMenit = Math.ceil(
     sisaMilidetik / 60000
   );
 
-  const pesan = gantiPlaceholderBreak_(
+  var pesan = gantiPlaceholderBreak_(
     templatePesan,
     {
       JEDA: jedaMenit,
@@ -1490,19 +1490,19 @@ function normalisasiWaktuAktivitasBreak_(
   sekarang,
   zonaWaktu
 ) {
-  let teksWaktu = '';
+  var teksWaktu = '';
 
   if (
     nilai instanceof Date &&
     Number.isFinite(nilai.getTime())
   ) {
-    const tanggalNilai = Utilities.formatDate(
+    var tanggalNilai = Utilities.formatDate(
       nilai,
       zonaWaktu,
       'yyyy-MM-dd'
     );
 
-    const tanggalSekarang = Utilities.formatDate(
+    var tanggalSekarang = Utilities.formatDate(
       sekarang,
       zonaWaktu,
       'yyyy-MM-dd'
@@ -1521,15 +1521,15 @@ function normalisasiWaktuAktivitasBreak_(
     teksWaktu = String(nilai || '').trim();
   }
 
-  const hasil = teksWaktu.match(
+  var hasil = teksWaktu.match(
     /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
   );
 
   if (!hasil) return null;
 
-  const jam = Number(hasil[1]);
-  const menit = Number(hasil[2]);
-  const detik = Number(hasil[3] || 0);
+  var jam = Number(hasil[1]);
+  var menit = Number(hasil[2]);
+  var detik = Number(hasil[3] || 0);
 
   if (
     jam < 0 || jam > 23 ||
@@ -1539,7 +1539,7 @@ function normalisasiWaktuAktivitasBreak_(
     return null;
   }
 
-  const bagianSekarang = Utilities
+  var bagianSekarang = Utilities
     .formatDate(
       sekarang,
       zonaWaktu,
@@ -1548,12 +1548,12 @@ function normalisasiWaktuAktivitasBreak_(
     .split(':')
     .map(Number);
 
-  const detikSekarang =
+  var detikSekarang =
     bagianSekarang[0] * 3600 +
     bagianSekarang[1] * 60 +
     bagianSekarang[2];
 
-  const detikTarget =
+  var detikTarget =
     jam * 3600 + menit * 60 + detik;
 
   return new Date(
@@ -1570,7 +1570,7 @@ function validasiMinimalSisaKerjaBreak2_(
   pengaturan,
   zonaWaktu
 ) {
-  const menitSekarang = ubahWaktuKeMenit_(
+  var menitSekarang = ubahWaktuKeMenit_(
     Utilities.formatDate(
       sekarang,
       zonaWaktu,
@@ -1578,11 +1578,11 @@ function validasiMinimalSisaKerjaBreak2_(
     )
   );
 
-  const menitPulang = ubahWaktuKeMenit_(
+  var menitPulang = ubahWaktuKeMenit_(
     pengaturan.jamPulangNormal
   );
 
-  const sisaKerjaMenit =
+  var sisaKerjaMenit =
     menitPulang - menitSekarang;
 
   if (
@@ -1597,7 +1597,7 @@ function validasiMinimalSisaKerjaBreak2_(
     };
   }
 
-  const template =
+  var template =
     pengaturan.warningMinimalSisaKerjaBreak2 ||
     'Break 2 tidak dapat dimulai karena sisa jam kerja kurang dari {{MINIMAL}} menit.';
 
@@ -1623,7 +1623,7 @@ function validasiMinimalSisaKerjaBreak2_(
  * Mengecek status kehadiran setengah hari.
  */
 function apakahSetengahHari_(statusKehadiran) {
-  const status = normalisasiHeader_(statusKehadiran);
+  var status = normalisasiHeader_(statusKehadiran);
   return ['1/2 HARI', 'HADIR 1/2 HARI'].includes(status);
 }
 
@@ -1632,29 +1632,29 @@ function apakahSetengahHari_(statusKehadiran) {
  * Mendukung checkbox serta nilai TRUE, AKTIF, YA, YES, dan 1.
  */
 function ambilKapasitasOutlet_(spreadsheet, outletSA) {
-  const sheet = spreadsheet.getSheetByName('MASTER_OUTLET');
+  var sheet = spreadsheet.getSheetByName('MASTER_OUTLET');
 
   if (!sheet) {
     throw new Error('Sheet MASTER_OUTLET tidak ditemukan.');
   }
 
-  const jumlahKolom = sheet.getLastColumn();
+  var jumlahKolom = sheet.getLastColumn();
 
   if (jumlahKolom === 0) {
     throw new Error('Header MASTER_OUTLET belum tersedia.');
   }
 
-  const header = sheet
+  var header = sheet
     .getRange(1, 1, 1, jumlahKolom)
     .getDisplayValues()[0]
     .map(normalisasiHeader_);
 
-  const indexKode = header.indexOf('KODE');
-  const indexNama = header.indexOf('NAMA OUTLET');
-  const indexMax = header.indexOf('MAX ISTIRAHAT');
-  const indexAktif = header.indexOf('AKTIF');
+  var indexKode = header.indexOf('KODE');
+  var indexNama = header.indexOf('NAMA OUTLET');
+  var indexMax = header.indexOf('MAX ISTIRAHAT');
+  var indexAktif = header.indexOf('AKTIF');
 
-  const kolomTidakAda = [];
+  var kolomTidakAda = [];
 
   if (indexKode === -1) kolomTidakAda.push('KODE');
   if (indexNama === -1) kolomTidakAda.push('NAMA OUTLET');
@@ -1668,22 +1668,22 @@ function ambilKapasitasOutlet_(spreadsheet, outletSA) {
     );
   }
 
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) {
     throw new Error('MASTER_OUTLET masih kosong.');
   }
 
-  const data = sheet
+  var data = sheet
     .getRange(2, 1, barisTerakhir - 1, jumlahKolom)
     .getValues();
 
-  const outletDicari = normalisasiHeader_(outletSA);
+  var outletDicari = normalisasiHeader_(outletSA);
 
-  for (let index = 0; index < data.length; index++) {
-    const baris = data[index];
-    const kode = normalisasiHeader_(baris[indexKode]);
-    const namaOutlet = normalisasiHeader_(baris[indexNama]);
+  for (var index = 0; index < data.length; index++) {
+    var baris = data[index];
+    var kode = normalisasiHeader_(baris[indexKode]);
+    var namaOutlet = normalisasiHeader_(baris[indexNama]);
 
     if (kode !== outletDicari && namaOutlet !== outletDicari) {
       continue;
@@ -1697,7 +1697,7 @@ function ambilKapasitasOutlet_(spreadsheet, outletSA) {
       );
     }
 
-    const maxIstirahat = Number(baris[indexMax]);
+    var maxIstirahat = Number(baris[indexMax]);
 
     if (!Number.isInteger(maxIstirahat) || maxIstirahat < 1) {
       throw new Error(
@@ -1730,7 +1730,7 @@ function statusAktifGtt_(nilai) {
     return false;
   }
 
-  const teks = String(nilai).trim().toUpperCase();
+  var teks = String(nilai).trim().toUpperCase();
 
   return ['TRUE', 'AKTIF', 'YA', 'YES', '1'].includes(teks);
 }
@@ -1745,24 +1745,24 @@ function hitungSedangBreakOutlet_(
   tanggalHariIni,
   zonaWaktu
 ) {
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) return 0;
 
-  const data = sheet
+  var data = sheet
     .getRange(2, 1, barisTerakhir - 1, sheet.getLastColumn())
     .getValues();
 
-  const outletDicari = normalisasiHeader_(outlet);
-  let jumlah = 0;
+  var outletDicari = normalisasiHeader_(outlet);
+  var jumlah = 0;
 
   data.forEach(baris => {
-    const tanggalData = normalisasiTanggalAbsensi_(
+    var tanggalData = normalisasiTanggalAbsensi_(
       baris[headerMap['TANGGAL']],
       zonaWaktu
     );
 
-    const outletData = normalisasiHeader_(
+    var outletData = normalisasiHeader_(
       baris[headerMap['OUTLET']]
     );
 
@@ -1770,11 +1770,11 @@ function hitungSedangBreakOutlet_(
       return;
     }
 
-    const s1Aktif =
+    var s1Aktif =
       baris[headerMap['S1 MULAI']] instanceof Date &&
       !(baris[headerMap['S1 SELESAI']] instanceof Date);
 
-    const s2Aktif =
+    var s2Aktif =
       baris[headerMap['S2 MULAI']] instanceof Date &&
       !(baris[headerMap['S2 SELESAI']] instanceof Date);
 
@@ -1788,7 +1788,7 @@ function hitungSedangBreakOutlet_(
  * Menghitung durasi break dalam menit.
  */
 function hitungDurasiMenit_(waktuMulai, waktuSelesai) {
-  const selisih = waktuSelesai.getTime() - waktuMulai.getTime();
+  var selisih = waktuSelesai.getTime() - waktuMulai.getTime();
 
   if (selisih < 0) {
     throw new Error('Waktu selesai lebih kecil dari waktu mulai.');
@@ -1839,7 +1839,7 @@ function buatPesanHasilBreak_(
     return '';
   }
 
-  const pesanOverbreak = gantiPlaceholderBreak_(
+  var pesanOverbreak = gantiPlaceholderBreak_(
     pengaturan.warningOverbreak ||
       'Anda sudah OVERBREAK selama {{MENIT}} menit. Segera akhiri break dan kembali bekerja.',
     {
@@ -1847,7 +1847,7 @@ function buatPesanHasilBreak_(
     }
   );
 
-  const pesanSanksi = gantiPlaceholderBreak_(
+  var pesanSanksi = gantiPlaceholderBreak_(
     pengaturan.warningSanksi ||
       'Anda dikenakan sanksi overbreak sebesar Rp{{RUPIAH}} untuk break ini.',
     {
@@ -1864,10 +1864,10 @@ function buatPesanHasilBreak_(
  * Mengganti placeholder {{NAMA}} pada warning.
  */
 function gantiPlaceholderBreak_(template, data) {
-  let hasil = String(template || '');
+  var hasil = String(template || '');
 
   Object.keys(data).forEach(kunci => {
-    const pola = new RegExp(
+    var pola = new RegExp(
       '\\{\\{' + kunci + '\\}\\}',
       'g'
     );
@@ -1893,14 +1893,14 @@ function formatRupiahBreak_(nilai) {
  * Memperbarui total overtime dan total sanksi.
  */
 function perbaruiTotalIstirahat_(sheet, nomorBaris, headerMap) {
-  const baris = sheet
+  var baris = sheet
     .getRange(nomorBaris, 1, 1, sheet.getLastColumn())
     .getValues()[0];
 
-  const s1Overtime = Number(baris[headerMap['S1 OVERTIME']]) || 0;
-  const s2Overtime = Number(baris[headerMap['S2 OVERTIME']]) || 0;
-  const s1Sanksi = Number(baris[headerMap['S1 SANKSI']]) || 0;
-  const s2Sanksi = Number(baris[headerMap['S2 SANKSI']]) || 0;
+  var s1Overtime = Number(baris[headerMap['S1 OVERTIME']]) || 0;
+  var s2Overtime = Number(baris[headerMap['S2 OVERTIME']]) || 0;
+  var s1Sanksi = Number(baris[headerMap['S1 SANKSI']]) || 0;
+  var s2Sanksi = Number(baris[headerMap['S2 SANKSI']]) || 0;
 
   sheet
     .getRange(nomorBaris, headerMap['TOTAL OVERTIME'] + 1)
@@ -1921,7 +1921,7 @@ function cekMencapaiAtauMelewatiBatasWaktu_(
   batasWaktu,
   zonaWaktu
 ) {
-  const waktuTeks = Utilities.formatDate(
+  var waktuTeks = Utilities.formatDate(
     waktuSekarang,
     zonaWaktu,
     'HH:mm'
@@ -1937,15 +1937,15 @@ function cekMencapaiAtauMelewatiBatasWaktu_(
  * Mengubah waktu HH:mm menjadi total menit.
  */
 function ubahWaktuKeMenit_(nilaiWaktu) {
-  const teks = String(nilaiWaktu || '').trim();
-  const hasil = teks.match(/^(\d{1,2}):(\d{2})$/);
+  var teks = String(nilaiWaktu || '').trim();
+  var hasil = teks.match(/^(\d{1,2}):(\d{2})$/);
 
   if (!hasil) {
     throw new Error('Format waktu tidak valid: ' + teks + '. Gunakan HH:mm.');
   }
 
-  const jam = Number(hasil[1]);
-  const menit = Number(hasil[2]);
+  var jam = Number(hasil[1]);
+  var menit = Number(hasil[2]);
 
   if (jam < 0 || jam > 23 || menit < 0 || menit > 59) {
     throw new Error('Nilai waktu tidak valid: ' + teks + '.');
@@ -1958,13 +1958,13 @@ function ubahWaktuKeMenit_(nilaiWaktu) {
  * Membuat ID LOG_ISTIRAHAT unik.
  */
 function buatIdLogIstirahat_(pin, waktu, zonaWaktu) {
-  const timestamp = Utilities.formatDate(
+  var timestamp = Utilities.formatDate(
     waktu,
     zonaWaktu,
     'yyyyMMddHHmmss'
   );
 
-  const acak = Utilities
+  var acak = Utilities
     .getUuid()
     .replace(/-/g, '')
     .substring(0, 6)
@@ -1978,11 +1978,11 @@ function buatIdLogIstirahat_(pin, waktu, zonaWaktu) {
  */
 function ambilStatusBreakHariIni(pinInput) {
   try {
-    const konteks = ambilKonteksBreak_(pinInput);
+    var konteks = ambilKonteksBreak_(pinInput);
 
     if (!konteks.success) return konteks;
 
-    const {
+    var {
       pengguna,
       spreadsheet,
       sheetLog,
@@ -1993,7 +1993,7 @@ function ambilStatusBreakHariIni(pinInput) {
       pengaturan
     } = konteks.data;
 
-    const hasilAbsensi = cariAbsensiAktifHariIni_(
+    var hasilAbsensi = cariAbsensiAktifHariIni_(
       spreadsheet,
       pengguna.pin,
       tanggalHariIni,
@@ -2011,7 +2011,7 @@ function ambilStatusBreakHariIni(pinInput) {
       };
     }
 
-    const dataLog = cariLogIstirahatHariIni_(
+    var dataLog = cariLogIstirahatHariIni_(
       sheetLog,
       headerMap,
       pengguna.pin,
@@ -2020,7 +2020,7 @@ function ambilStatusBreakHariIni(pinInput) {
     );
 
     if (!dataLog.ditemukan) {
-      const validasiBreak1 =
+      var validasiBreak1 =
         validasiMulaiBreak1_(
           dataLog,
           headerMap,
@@ -2041,14 +2041,14 @@ function ambilStatusBreakHariIni(pinInput) {
       );
     }
 
-    const baris = dataLog.data;
-    const s1Mulai = baris[headerMap['S1 MULAI']];
-    const s1Selesai = baris[headerMap['S1 SELESAI']];
-    const s2Mulai = baris[headerMap['S2 MULAI']];
-    const s2Selesai = baris[headerMap['S2 SELESAI']];
+    var baris = dataLog.data;
+    var s1Mulai = baris[headerMap['S1 MULAI']];
+    var s1Selesai = baris[headerMap['S1 SELESAI']];
+    var s2Mulai = baris[headerMap['S2 MULAI']];
+    var s2Selesai = baris[headerMap['S2 SELESAI']];
 
     if (s1Mulai instanceof Date && !(s1Selesai instanceof Date)) {
-      const statusWaktu = buatStatusWaktuBreak_(
+      var statusWaktu = buatStatusWaktuBreak_(
         s1Mulai,
         1,
         konteks.data.sekarang,
@@ -2067,7 +2067,7 @@ function ambilStatusBreakHariIni(pinInput) {
     }
 
     if (s1Selesai instanceof Date && !(s2Mulai instanceof Date)) {
-      const validasiBreak2 =
+      var validasiBreak2 =
         validasiMulaiBreak2_(
           dataLog,
           headerMap,
@@ -2085,7 +2085,7 @@ function ambilStatusBreakHariIni(pinInput) {
     }
 
     if (s2Mulai instanceof Date && !(s2Selesai instanceof Date)) {
-      const statusWaktu = buatStatusWaktuBreak_(
+      var statusWaktu = buatStatusWaktuBreak_(
         s2Mulai,
         2,
         konteks.data.sekarang,
@@ -2115,7 +2115,7 @@ function ambilStatusBreakHariIni(pinInput) {
       };
     }
 
-    const validasiBreak1 =
+    var validasiBreak1 =
       validasiMulaiBreak1_(
         dataLog,
         headerMap,
@@ -2155,12 +2155,12 @@ function buatStatusMulaiBreak_(
   zonaWaktu,
   dataTambahan
 ) {
-  const hasilValidasi = validasi || {
+  var hasilValidasi = validasi || {
     success: false,
     message: 'Status Break belum dapat ditentukan.'
   };
 
-  const dataValidasi =
+  var dataValidasi =
     hasilValidasi.data || {};
 
   return {
@@ -2202,28 +2202,28 @@ function buatStatusWaktuBreak_(
   sekarang,
   pengaturan
 ) {
-  const batasDurasi =
+  var batasDurasi =
     nomorBreak === 1
       ? pengaturan.durasiBreak1
       : pengaturan.durasiBreak2;
 
-  const durasiBerjalan = hitungDurasiMenit_(
+  var durasiBerjalan = hitungDurasiMenit_(
     waktuMulai,
     sekarang
   );
 
-  const sisaNormal = batasDurasi - durasiBerjalan;
-  const lewatDurasi = Math.max(
+  var sisaNormal = batasDurasi - durasiBerjalan;
+  var lewatDurasi = Math.max(
     0,
     durasiBerjalan - batasDurasi
   );
-  const overbreakMenit = Math.max(
+  var overbreakMenit = Math.max(
     0,
     lewatDurasi - pengaturan.toleransiOverbreak
   );
 
-  let fase = 'NORMAL';
-  let warning = '';
+  var fase = 'NORMAL';
+  var warning = '';
 
   if (
     sisaNormal > 0 &&
@@ -2274,32 +2274,32 @@ function buatStatusWaktuBreak_(
  */
 
 function ujiStatusBreakHariIni() {
-  const PIN_UJI = '8415';
-  const hasil = ambilStatusBreakHariIni(PIN_UJI);
+  var PIN_UJI = '8415';
+  var hasil = ambilStatusBreakHariIni(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
 }
 
 function ujiMulaiBreak1() {
-  const PIN_UJI = '8415';
-  const hasil = mulaiBreak1(PIN_UJI);
+  var PIN_UJI = '8415';
+  var hasil = mulaiBreak1(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
 }
 
 function ujiSelesaiBreak1() {
-  const PIN_UJI = '8415';
-  const hasil = selesaiBreak1(PIN_UJI);
+  var PIN_UJI = '8415';
+  var hasil = selesaiBreak1(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
 }
 
 function ujiMulaiBreak2() {
-  const PIN_UJI = '9616';
-  const hasil = mulaiBreak2(PIN_UJI);
+  var PIN_UJI = '9616';
+  var hasil = mulaiBreak2(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
 }
 
 function ujiSelesaiBreak2() {
-  const PIN_UJI = '8415';
-  const hasil = selesaiBreak2(PIN_UJI);
+  var PIN_UJI = '8415';
+  var hasil = selesaiBreak2(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
 }
 
@@ -2307,7 +2307,119 @@ function ujiSelesaiBreak2() {
  * Tidak mengubah data; hanya menguji MASTER_OUTLET.
  */
 function ujiKapasitasOutlet() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const hasil = ambilKapasitasOutlet_(spreadsheet, 'GP');
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var hasil = ambilKapasitasOutlet_(spreadsheet, 'GP');
   console.log(JSON.stringify(hasil, null, 2));
+}
+
+
+/**
+ * =====================================================
+ * SELF-TEST BREAK ENGINE 2.2.0
+ * Tidak menulis transaksi. Aman dijalankan dari editor.
+ * =====================================================
+ */
+function ujiBreakTimeGsLengkap() {
+  var hasil = {
+    success: false,
+    code: 'UJI_BREAKTIME_FAIL',
+    tests: {},
+    pengaturan: null
+  };
+
+  try {
+    var fungsiWajib = [
+      'mulaiBreak1',
+      'selesaiBreak1',
+      'mulaiBreak2',
+      'selesaiBreak2',
+      'ambilStatusBreakHariIni',
+      'ambilKonteksBreak_',
+      'ambilPengaturanBreak_',
+      'validasiMulaiBreak1_',
+      'validasiMulaiBreak2_',
+      'validasiJedaAktivitasBreak_',
+      'validasiMinimalSisaKerjaBreak2_'
+    ];
+
+    var fungsiTersedia = true;
+    fungsiWajib.forEach(function (namaFungsi) {
+      var tersedia = typeof this[namaFungsi] === 'function';
+      hasil.tests['fungsi_' + namaFungsi] = tersedia;
+      if (!tersedia) fungsiTersedia = false;
+    }, this);
+
+    var pengaturan = ambilPengaturanBreak_();
+    hasil.pengaturan = pengaturan;
+
+    hasil.tests.jedaMasukKeBreak1Valid =
+      Number(pengaturan.jedaMasukKeBreak1) === 120;
+
+    hasil.tests.jedaBreak1KeBreak2Valid =
+      Number(pengaturan.jedaBreak1KeBreak2) === 120;
+
+    hasil.tests.durasiBreak1Valid =
+      Number(pengaturan.durasiBreak1) > 0;
+
+    hasil.tests.durasiBreak2Valid =
+      Number(pengaturan.durasiBreak2) > 0;
+
+    hasil.tests.maxBreakBersamaanValid =
+      Number(pengaturan.maxBreakBersamaan) > 0;
+
+    hasil.tests.minimalSisaKerjaBreak2Valid =
+      Number(pengaturan.minimalSisaKerjaBreak2) >= 0;
+
+    var zonaWaktu = SpreadsheetApp
+      .getActiveSpreadsheet()
+      .getSpreadsheetTimeZone();
+
+    var dasar = new Date('2026-08-02T08:00:00+08:00');
+    var sebelum = new Date('2026-08-02T09:59:00+08:00');
+    var tepat = new Date('2026-08-02T10:00:00+08:00');
+
+    var hasilSebelum = validasiJedaAktivitasBreak_(
+      dasar,
+      sebelum,
+      120,
+      zonaWaktu,
+      'TEST_BELUM_TERSEDIA',
+      'Tersedia pukul {{JAM}} tersisa {{SISA}} menit.'
+    );
+
+    var hasilTepat = validasiJedaAktivitasBreak_(
+      dasar,
+      tepat,
+      120,
+      zonaWaktu,
+      'TEST_BELUM_TERSEDIA',
+      'Tersedia pukul {{JAM}} tersisa {{SISA}} menit.'
+    );
+
+    hasil.tests.jedaSebelum120MenitDitolak =
+      hasilSebelum.success === false &&
+      hasilSebelum.code === 'TEST_BELUM_TERSEDIA';
+
+    hasil.tests.jedaTepat120MenitDiterima =
+      hasilTepat.success === true;
+
+    var semuaLulus = fungsiTersedia;
+    Object.keys(hasil.tests).forEach(function (namaTest) {
+      if (hasil.tests[namaTest] !== true) semuaLulus = false;
+    });
+
+    hasil.success = semuaLulus;
+    hasil.code = semuaLulus
+      ? 'UJI_BREAKTIME_PASS'
+      : 'UJI_BREAKTIME_FAIL';
+
+    console.log(JSON.stringify(hasil, null, 2));
+    return hasil;
+  } catch (error) {
+    hasil.error = error && error.message
+      ? error.message
+      : String(error);
+    console.error(JSON.stringify(hasil, null, 2));
+    return hasil;
+  }
 }

@@ -295,6 +295,8 @@
     state.isBootstrapProcessing = false;
     setLoginProcessing(false);
 
+    result = normalizeGttServerResult(result);
+
     if (!result || result.success !== true || !result.data) {
       const message =
         result && result.message
@@ -352,14 +354,14 @@
     const source = bootstrapUser || {};
 
     return {
-      saId: base.saId || '',
-      name: String(source.namaSA || base.name || '').trim(),
+      saId: String(source.saId || base.saId || '').trim(),
+      name: String(source.namaSA || source.name || base.name || '').trim(),
       outlet: String(source.outlet || base.outlet || '').trim(),
       status: String(source.status || base.status || '')
         .trim()
         .toUpperCase(),
-      position: base.position || '',
-      role: base.role || 'SA'
+      position: String(source.jabatan || source.position || base.position || '').trim(),
+      role: String(source.role || base.role || 'SA').trim().toUpperCase()
     };
   }
 
@@ -1262,6 +1264,8 @@
   }
 
   function handleSaTransactionSuccess(actionCode, result) {
+    result = normalizeGttServerResult(result);
+
     if (!result || result.success !== true) {
       setSaActionProcessing(false);
 
@@ -1316,24 +1320,33 @@
           return;
         }
 
-        state.refreshFailureCount = 0;
-        state.bootstrapData = mergeSaRefreshData(
-          state.bootstrapData,
-          result.data
-        );
+        try {
+          state.refreshFailureCount = 0;
+          state.bootstrapData = mergeSaRefreshData(
+            state.bootstrapData,
+            result.data
+          );
 
-        if (result.data.pengguna) {
-          state.user = mergeBootstrapUserData(
-            state.user,
-            result.data.pengguna
+          if (result.data.pengguna) {
+            state.user = mergeBootstrapUserData(
+              state.user,
+              result.data.pengguna
+            );
+          }
+
+          if (result.data.waktuServer) {
+            configureServerClock(result.data.waktuServer);
+          }
+
+          refreshSaDashboardView();
+        } catch (renderError) {
+          console.error('Render dashboard pascatransaksi gagal:', renderError, result);
+          showSaActionFeedback(
+            'Transaksi berhasil, tetapi tampilan dashboard gagal diperbarui: ' +
+              (renderError && renderError.message ? renderError.message : String(renderError)),
+            'warning'
           );
         }
-
-        if (result.data.waktuServer) {
-          configureServerClock(result.data.waktuServer);
-        }
-
-        refreshSaDashboardView();
       })
       .withFailureHandler(function (error) {
         console.error('Reload dashboard pascatransaksi gagal:', error);
