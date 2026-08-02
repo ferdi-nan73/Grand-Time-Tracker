@@ -2,8 +2,8 @@
  * =====================================================
  * GRAND TIME TRACKER — GTT
  * Module : GTT-05 Attendance Engine
- * Version: 1.2.3
- * Status : Development — VALIDASI DATA PENGGUNA
+ * Version: 1.3.0
+ * Status : Reviewed Candidate — ABSENSI CORE
  * =====================================================
  */
 
@@ -129,6 +129,8 @@ function simpanAbsensiMasuk(pinInput) {
       nomorBarisBaru,
       headerMap
     );
+
+    SpreadsheetApp.flush();
 
     return {
       success: true,
@@ -256,7 +258,7 @@ function simpanAbsensiPulang(pinInput) {
       };
     }
 
-    const hasilStatusBreak = ambilStatusBreakHariIni(pinInput);
+    const hasilStatusBreak = absensiAmbilStatusBreakAman_(pinInput);
     if (!hasilStatusBreak.success) return hasilStatusBreak;
 
     const statusOperasional = String(
@@ -307,6 +309,8 @@ function simpanAbsensiPulang(pinInput) {
     sheetAbsensi
       .getRange(nomorBaris, headerMap['KETERANGAN'] + 1)
       .setValue(hasilPulang.keterangan || '');
+
+    SpreadsheetApp.flush();
 
     return {
       success: true,
@@ -561,7 +565,8 @@ function cariAbsensiHariIni_(
  * Mendukung perbedaan nama field antarversi PinSA.gs.
  */
 function absensiNormalisasiPengguna_(dataLogin, pinInput) {
-  const sumber = dataLogin || {};
+  const sumberAwal = dataLogin || {};
+  const sumber = sumberAwal.pengguna || sumberAwal;
 
   const pin = String(
     sumber.pin !== undefined && sumber.pin !== null
@@ -1122,4 +1127,132 @@ function ujiSimpanAbsensiPulang() {
   const PIN_UJI = '9616';
   const hasil = simpanAbsensiPulang(PIN_UJI);
   console.log(JSON.stringify(hasil, null, 2));
+}
+
+
+/**
+ * Membaca status Break dengan pemeriksaan dependency yang jelas.
+ * GTT-08 (pulang saat Break aktif) tetap menjadi backlog integrasi;
+ * versi ini masih mengunci tombol Pulang sampai Break selesai.
+ *
+ * @param {string|number} pinInput
+ * @return {Object}
+ */
+function absensiAmbilStatusBreakAman_(pinInput) {
+  if (typeof ambilStatusBreakHariIni !== 'function') {
+    return {
+      success: false,
+      code: 'DEPENDENCY_BREAK_BELUM_SIAP',
+      message:
+        'Fungsi ambilStatusBreakHariIni belum tersedia di BreakTime.gs.'
+    };
+  }
+
+  return ambilStatusBreakHariIni(pinInput);
+}
+
+
+/**
+ * Self-test logika inti Absensi.gs tanpa menulis ke sheet.
+ *
+ * @return {Object}
+ */
+function ujiAbsensiGs() {
+  const zonaWaktu =
+    SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+
+  const pengaturan = {
+    jamMasukNormal: '08:15',
+    toleransiTerlambat: 5,
+    batasAkhirTerlambat: '09:00',
+    jamMasukSetengahHari: '09:01',
+    batasPulangSetengahHari: '14:01',
+    jamPulangNormal: '20:30',
+    warningPulangTerlaluAwal: ''
+  };
+
+  function waktu_(jam) {
+    const bagian = jam.split(':');
+    const nilai = new Date(2026, 7, 2, 0, 0, 0, 0);
+    nilai.setHours(Number(bagian[0]), Number(bagian[1]), 0, 0);
+    return nilai;
+  }
+
+  const hasil0815 = hitungStatusAbsensi_(
+    waktu_('08:15'), pengaturan, zonaWaktu
+  );
+  const hasil0820 = hitungStatusAbsensi_(
+    waktu_('08:20'), pengaturan, zonaWaktu
+  );
+  const hasil0821 = hitungStatusAbsensi_(
+    waktu_('08:21'), pengaturan, zonaWaktu
+  );
+  const hasil0901 = hitungStatusAbsensi_(
+    waktu_('09:01'), pengaturan, zonaWaktu
+  );
+
+  const pulang1400 = hitungStatusPulang_(
+    waktu_('14:00'), waktu_('08:15'), 'HADIR PENUH',
+    pengaturan, zonaWaktu
+  );
+  const pulang1401 = hitungStatusPulang_(
+    waktu_('14:01'), waktu_('08:15'), 'HADIR PENUH',
+    pengaturan, zonaWaktu
+  );
+  const pulang2030 = hitungStatusPulang_(
+    waktu_('20:30'), waktu_('08:15'), 'HADIR PENUH',
+    pengaturan, zonaWaktu
+  );
+
+  const pemeriksaan = {
+    masuk0815Normal:
+      hasil0815.statusJamMasuk === 'NORMAL' &&
+      hasil0815.statusKehadiran === 'HADIR PENUH',
+    masuk0820MasihNormal:
+      hasil0820.statusJamMasuk === 'NORMAL',
+    masuk0821TerlambatSatuMenit:
+      hasil0821.statusJamMasuk === 'TERLAMBAT' &&
+      hasil0821.terlambatMenit === 1,
+    masuk0901SetengahHari:
+      hasil0901.statusKehadiran === 'HADIR 1/2 HARI',
+    pulang1400Alpa:
+      pulang1400.statusKehadiranAkhir === 'ALPA',
+    pulang1401SetengahHari:
+      pulang1401.statusKehadiranAkhir === 'HADIR 1/2 HARI',
+    pulang2030HadirPenuh:
+      pulang2030.statusKehadiranAkhir === 'HADIR PENUH',
+    masterSettingTerbaca: false,
+    dependencyBreakTersedia:
+      typeof ambilStatusBreakHariIni === 'function'
+  };
+
+  try {
+    absensiAmbilPengaturan_();
+    pemeriksaan.masterSettingTerbaca = true;
+  } catch (errorSetting) {
+    pemeriksaan.masterSettingTerbaca = false;
+  }
+
+  const logikaLulus = Object.keys(pemeriksaan)
+    .filter(function (kunci) {
+      return kunci !== 'dependencyBreakTersedia';
+    })
+    .every(function (kunci) {
+      return pemeriksaan[kunci] === true;
+    });
+
+  const hasil = {
+    success: logikaLulus,
+    code: logikaLulus
+      ? 'UJI_ABSENSI_PASS'
+      : 'UJI_ABSENSI_FAIL',
+    hasil: pemeriksaan,
+    catatan:
+      pemeriksaan.dependencyBreakTersedia
+        ? 'Dependency Break tersedia.'
+        : 'Dependency Break belum tersedia; akan diselesaikan pada review BreakTime.gs.'
+  };
+
+  console.log(JSON.stringify(hasil, null, 2));
+  return hasil;
 }

@@ -413,18 +413,28 @@
       .apiRefreshStatusSA(state.pin);
   }
 
+  function normalizeGttServerResult(result) {
+    if (typeof result !== 'string') {
+      return result;
+    }
+
+    try {
+      return JSON.parse(result);
+    } catch (error) {
+      console.error('Respons server bukan JSON yang valid:', result, error);
+      return null;
+    }
+  }
+
   function handleSaRefreshSuccess(result) {
     state.isRefreshProcessing = false;
     state.lastRefreshAt = Date.now();
 
+    result = normalizeGttServerResult(result);
+
     if (!result || result.success !== true || !result.data) {
       state.refreshFailureCount += 1;
-      console.warn(
-        'Refresh SA ditolak:',
-        result && result.message
-          ? result.message
-          : 'Respons refresh tidak valid.'
-      );
+      console.warn('Refresh SA ditolak:', result);
       return;
     }
 
@@ -1285,30 +1295,61 @@
   }
   function reloadSaDashboardAfterTransaction() {
     google.script.run
-      .withSuccessHandler(result => {
+      .withSuccessHandler(function (rawResult) {
         setSaActionProcessing(false);
 
+        var result = normalizeGttServerResult(rawResult);
+
         if (!result || result.success !== true || !result.data) {
+          console.error('Respons reload pascatransaksi tidak valid:', rawResult);
           showSaActionFeedback(
-            'Transaksi berhasil, tetapi status terbaru gagal dimuat. Dashboard akan mencoba memperbarui otomatis.',
+            result && result.message
+              ? result.message
+              : 'Transaksi berhasil, tetapi status terbaru gagal dimuat. Silakan tekan Mengerti; dashboard akan diperbarui kembali.',
             'warning'
           );
-          runSaStatusRefresh();
+
+          window.setTimeout(function () {
+            state.isRefreshProcessing = false;
+            runSaStatusRefresh();
+          }, 500);
           return;
         }
 
-        state.bootstrapData = result.data;
-        state.user = mergeBootstrapUserData(
-          state.user,
-          result.data.pengguna
+        state.refreshFailureCount = 0;
+        state.bootstrapData = mergeSaRefreshData(
+          state.bootstrapData,
+          result.data
         );
-        configureServerClock(result.data.waktuServer);
+
+        if (result.data.pengguna) {
+          state.user = mergeBootstrapUserData(
+            state.user,
+            result.data.pengguna
+          );
+        }
+
+        if (result.data.waktuServer) {
+          configureServerClock(result.data.waktuServer);
+        }
+
         refreshSaDashboardView();
       })
-      .withFailureHandler(error => {
+      .withFailureHandler(function (error) {
         console.error('Reload dashboard pascatransaksi gagal:', error);
         setSaActionProcessing(false);
-        runSaStatusRefresh();
+
+        showSaActionFeedback(
+          error && error.message
+            ? 'Transaksi berhasil, tetapi refresh dashboard gagal: ' + error.message
+            : 'Transaksi berhasil, tetapi refresh dashboard gagal.',
+          'warning'
+        );
+
+        window.setTimeout(function () {
+          state.isRefreshProcessing = false;
+          runSaStatusRefresh();
+        }, 500);
       })
       .apiRefreshStatusSA(state.pin);
   }

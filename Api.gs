@@ -1,1098 +1,676 @@
-// ===== API.GS - PART 1 START =====
-
 /**
  * =====================================================
  * GRAND TIME TRACKER — GTT
  * Module : API Gateway
- * Version: 2.2.0
- * Sprint : GTT-002
+ * Version: 2.3.1
+ * Sprint : GTT-002 — API Stabilization
  * =====================================================
  */
 
-
-/**
- * Mengecek kesiapan backend dan sheet wajib GTT.
- *
- * @return {Object}
- */
 function apiHealthCheck() {
   return apiJalankan_('HEALTH_CHECK', function () {
-    var spreadsheet =
-      SpreadsheetApp.getActiveSpreadsheet();
-
-    var zonaWaktu =
-      spreadsheet.getSpreadsheetTimeZone();
-
-    var sekarang = new Date();
-
-    var sheetWajib = [
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var tz = ss.getSpreadsheetTimeZone();
+    var now = new Date();
+    var required = [
       'MASTER_SA',
       'MASTER_OUTLET',
       'MASTER_SETTING',
       'ABSENSI_HARIAN',
       'LOG_ISTIRAHAT'
     ];
-
-    var statusSheet = {};
-
-    sheetWajib.forEach(function (namaSheet) {
-      statusSheet[namaSheet] = Boolean(
-        spreadsheet.getSheetByName(namaSheet)
-      );
+    var sheets = {};
+    required.forEach(function (name) {
+      sheets[name] = Boolean(ss.getSheetByName(name));
     });
-
-    var seluruhSheetTersedia =
-      Object.keys(statusSheet).every(
-        function (namaSheet) {
-          return statusSheet[namaSheet];
-        }
-      );
-
+    var ok = required.every(function (name) { return sheets[name]; });
     return {
-      success: seluruhSheetTersedia,
-      code: seluruhSheetTersedia
-        ? 'API_HEALTHY'
-        : 'API_DEPENDENCY_ERROR',
-      message: seluruhSheetTersedia
-        ? 'Backend GTT berjalan normal.'
-        : 'Ada sheet wajib yang tidak ditemukan.',
+      success: ok,
+      code: ok ? 'API_HEALTHY' : 'API_DEPENDENCY_ERROR',
+      message: ok ? 'Backend GTT berjalan normal.' : 'Ada sheet wajib yang tidak ditemukan.',
       data: {
         aplikasi: 'GTT',
-        versiApi: '2.2.0',
+        versiApi: '2.3.1',
         waktuServer: {
-          tanggal: Utilities.formatDate(
-            sekarang,
-            zonaWaktu,
-            'dd/MM/yyyy'
-          ),
-          jam: Utilities.formatDate(
-            sekarang,
-            zonaWaktu,
-            'HH:mm:ss'
-          ),
-          timestamp: sekarang.getTime(),
-          zonaWaktu: zonaWaktu
+          tanggal: Utilities.formatDate(now, tz, 'dd/MM/yyyy'),
+          jam: Utilities.formatDate(now, tz, 'HH:mm:ss'),
+          timestamp: now.getTime(),
+          zonaWaktu: tz
         },
-        sheet: statusSheet
+        sheet: sheets
       }
     };
   });
 }
 
-
-/**
- * Login SA menggunakan PIN.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiLogin(pinInput) {
   return apiJalankan_('LOGIN', function () {
     return validasiLoginPin(pinInput);
   });
 }
 
-
-/**
- * Menyimpan absen masuk.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiAbsenMasuk(pinInput) {
-  return apiJalankan_(
-    'ABSEN_MASUK',
-    function () {
-      return simpanAbsensiMasuk(pinInput);
-    }
-  );
+  return apiJalankan_('ABSEN_MASUK', function () {
+    return simpanAbsensiMasuk(pinInput);
+  });
 }
 
-
-/**
- * Menyimpan absen pulang.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiAbsenPulang(pinInput) {
-  return apiJalankan_(
-    'ABSEN_PULANG',
-    function () {
-      return simpanAbsensiPulang(pinInput);
-    }
-  );
+  return apiJalankan_('ABSEN_PULANG', function () {
+    return simpanAbsensiPulang(pinInput);
+  });
 }
 
-
-/**
- * Memulai Break 1.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiMulaiBreak1(pinInput) {
-  return apiJalankan_(
-    'MULAI_BREAK_1',
-    function () {
-      return mulaiBreak1(pinInput);
-    }
-  );
+  return apiJalankan_('MULAI_BREAK_1', function () {
+    return mulaiBreak1(pinInput);
+  });
 }
 
-
-/**
- * Menyelesaikan Break 1.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiSelesaiBreak1(pinInput) {
-  return apiJalankan_(
-    'SELESAI_BREAK_1',
-    function () {
-      return selesaiBreak1(pinInput);
-    }
-  );
+  return apiJalankan_('SELESAI_BREAK_1', function () {
+    return selesaiBreak1(pinInput);
+  });
 }
 
-
-/**
- * Memulai Break 2.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiMulaiBreak2(pinInput) {
-  return apiJalankan_(
-    'MULAI_BREAK_2',
-    function () {
-      return mulaiBreak2(pinInput);
-    }
-  );
+  return apiJalankan_('MULAI_BREAK_2', function () {
+    return mulaiBreak2(pinInput);
+  });
 }
 
-
-/**
- * Menyelesaikan Break 2.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiSelesaiBreak2(pinInput) {
-  return apiJalankan_(
-    'SELESAI_BREAK_2',
-    function () {
-      return selesaiBreak2(pinInput);
-    }
-  );
+  return apiJalankan_('SELESAI_BREAK_2', function () {
+    return selesaiBreak2(pinInput);
+  });
 }
 
-
-/**
- * Mengambil status Break hari ini.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
 function apiStatusBreakHariIni(pinInput) {
-  return apiJalankan_(
-    'STATUS_BREAK_HARI_INI',
-    function () {
-      return ambilStatusBreakHariIni(
-        pinInput
-      );
-    }
-  );
-}
+  return apiJalankan_('STATUS_BREAK_HARI_INI', function () {
+    var login = validasiLoginPin(pinInput);
+    if (!login.success) return login;
 
+    var user = apiNormalisasiPengguna_(login.data, pinInput);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var tz = ss.getSpreadsheetTimeZone();
+    var infoWaktu = gttInfoWaktu_(user.pin);
+    var now = infoWaktu.sekarang;
+    var breakInfo = apiAmbilBreakInfoPribadi_(ss, user.pin, now, tz);
+    var settings = apiAmbilSettingBreak_(ss);
+    var state = apiBangunStatusBreak_(breakInfo, settings, now, tz);
 
-/**
- * Mengambil ringkasan dashboard outlet.
- *
- * @param {string=} outletInput
- * @return {Object}
- */
-function apiRingkasanDashboard(outletInput) {
-  return apiJalankan_(
-    'RINGKASAN_DASHBOARD',
-    function () {
-      return ambilRingkasanDashboard(
-        outletInput || ''
-      );
-    }
-  );
-}
-
-
-/**
- * Bootstrap data awal SA setelah login.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
-function apiBootstrapSA(pinInput) {
-  return apiJalankan_(
-    'BOOTSTRAP_SA',
-    function () {
-      var hasil =
-        apiBangunDataSA_(pinInput);
-
-      if (!hasil.success) {
-        return hasil;
-      }
-
-      return {
-        success: true,
-        code: 'BOOTSTRAP_SA_BERHASIL',
-        message:
-          'Data awal aplikasi berhasil dimuat.',
-        data: hasil.data
-      };
-    }
-  );
-}
-
-
-/**
- * Memperbarui status SA.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
-function apiRefreshStatusSA(pinInput) {
-  return apiJalankan_(
-    'REFRESH_STATUS_SA',
-    function () {
-      var hasil =
-        apiBangunDataSA_(pinInput);
-
-      if (!hasil.success) {
-        return hasil;
-      }
-
-      return {
-        success: true,
-        code: 'REFRESH_STATUS_SA_BERHASIL',
-        message:
-          'Status SA berhasil diperbarui.',
-        data: hasil.data
-      };
-    }
-  );
-}
-
-// ===== API.GS - PART 1 END =====
-// ===== API.GS - PART 2 START =====
-
-/**
- * Builder utama data SA untuk bootstrap dan refresh.
- *
- * @param {string|number} pinInput
- * @return {Object}
- */
-function apiBangunDataSA_(pinInput) {
-  var hasilLogin =
-    validasiLoginPin(pinInput);
-
-  if (!hasilLogin.success) {
-    return hasilLogin;
-  }
-
-  var pengguna =
-    apiNormalisasiPengguna_(
-      hasilLogin.data,
-      pinInput
-    );
-
-  var hasilDashboard =
-    ambilRingkasanDashboard(
-      pengguna.outlet,
-      pengguna.pin
-    );
-
-  if (!hasilDashboard.success) {
-    return hasilDashboard;
-  }
-
-  var daftarStatus =
-    hasilDashboard.data &&
-    hasilDashboard.data.daftarStatus
-      ? hasilDashboard.data.daftarStatus
-      : [];
-
-  var statusSA =
-    apiCariStatusSaDashboard_(
-      daftarStatus,
-      pengguna.pin
-    );
-
-  if (!statusSA) {
     return {
-      success: false,
-      code: 'STATUS_SA_TIDAK_DITEMUKAN',
-      message:
-        'Status SA tidak ditemukan pada Dashboard Outlet ' +
-        pengguna.outlet +
-        '.'
+      success: true,
+      code: 'STATUS_BREAK_BERHASIL',
+      message: 'Status break berhasil dimuat.',
+      data: state
     };
+  });
+}
+
+function apiRingkasanDashboard(outletInput) {
+  return apiJalankan_('RINGKASAN_DASHBOARD', function () {
+    return ambilRingkasanDashboard(outletInput || '');
+  });
+}
+
+function apiBootstrapSA(pinInput) {
+  return apiJalankan_('BOOTSTRAP_SA', function () {
+    return apiBangunDataSA_(pinInput, 'BOOTSTRAP_SA_BERHASIL');
+  });
+}
+
+function apiRefreshStatusSA(pinInput) {
+  return apiJalankan_('REFRESH_STATUS_SA', function () {
+    return apiBangunDataSA_(pinInput, 'REFRESH_STATUS_SA_BERHASIL');
+  });
+}
+
+function apiBangunDataSA_(pinInput, successCode) {
+  var login = validasiLoginPin(pinInput);
+  if (!login.success) return login;
+
+  var user = apiNormalisasiPengguna_(login.data, pinInput);
+  var dashboard = ambilRingkasanDashboard(user.outlet, user.pin);
+  if (!dashboard.success) return dashboard;
+
+  var list = dashboard.data && Array.isArray(dashboard.data.daftarStatus)
+    ? dashboard.data.daftarStatus
+    : [];
+  var statusSA = apiCariStatusSaDashboard_(list, user.pin);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tz = ss.getSpreadsheetTimeZone();
+
+  // Dashboard outlet dapat terlambat memperbarui daftarStatus sesaat
+  // setelah transaksi. Jangan menggagalkan sesi pengguna. Ambil data
+  // kehadiran langsung dari ABSENSI_HARIAN sebagai fallback.
+  if (!statusSA) {
+    statusSA = apiBangunStatusSaFallback_(
+      ss,
+      user,
+      tz
+    );
   }
-
-  var hasilStatusBreak =
-    ambilStatusBreakHariIni(
-      pengguna.pin
-    );
-
-  if (!hasilStatusBreak.success) {
-    return hasilStatusBreak;
-  }
-
-  var spreadsheet =
-    SpreadsheetApp.getActiveSpreadsheet();
-
-  var zonaWaktu =
-    spreadsheet.getSpreadsheetTimeZone();
-
-  var infoWaktu =
-    gttInfoWaktu_(pengguna.pin);
-
-  var sekarang =
-    infoWaktu.sekarang;
-
-  var breakInfo =
-    apiAmbilBreakInfoPribadi_(
-      spreadsheet,
-      pengguna.pin,
-      sekarang,
-      zonaWaktu
-    );
-
-  var kapasitasBreak =
-    apiAmbilKapasitasBreakSetting_(
-      spreadsheet
-    );
-
-  var ringkasanDashboard =
-    hasilDashboard.data &&
-    hasilDashboard.data.ringkasan
-      ? hasilDashboard.data.ringkasan
-      : {};
-
-  var jumlahSedangBreak =
-    Number(
-      ringkasanDashboard.sedangBreak || 0
-    );
-
-  var kapasitasPenuh =
-    jumlahSedangBreak >=
-    kapasitasBreak.maksimalBreak;
-
-  var kehadiran =
-    apiBangunKehadiran_(
-      statusSA
-    );
-
-  var statusBreakData =
-    hasilStatusBreak.data || {};
-
-  var tombolUtama =
-    apiTentukanTombolUtama_(
-      kehadiran,
-      statusSA,
-      statusBreakData,
-      breakInfo,
-      kapasitasPenuh,
-      kapasitasBreak
-    );
-
-  var statusOperasional =
-    String(
-      statusSA.statusOperasional ||
-      statusBreakData.statusOperasional ||
-      'BELUM ABSEN'
-    ).trim();
-
-  var breakData = {
-    statusOperasional:
-      statusOperasional,
-
-    break1:
-      breakInfo.break1,
-
-    break2:
-      breakInfo.break2,
-
-    overbreakMenit: {
-      break1:
-        Number(
-          breakInfo.break1.overtimeMenit
-        ) || 0,
-
-      break2:
-        Number(
-          breakInfo.break2.overtimeMenit
-        ) || 0
-    },
-
-    seluruhBreakSelesai:
-      Boolean(
-        statusBreakData.seluruhBreakSelesai
-      ) ||
-      (
-        breakInfo.break1.status ===
-          'SELESAI' &&
-        breakInfo.break2.status ===
-          'SELESAI'
-      ),
-
-    break1Dilewati:
-      Boolean(
-        statusBreakData.break1Dilewati
-      ),
-
-    aksiDiizinkan:
-      statusBreakData.aksiDiizinkan !==
-      false,
-
-    alasanTerkunci:
-      String(
-        statusBreakData.alasanTerkunci ||
-        ''
-      ).trim(),
-
-    kodeTerkunci:
-      String(
-        statusBreakData.kodeTerkunci ||
-        ''
-      ).trim(),
-
-    tersediaPada:
-      String(
-        statusBreakData.tersediaPada ||
-        ''
-      ).trim(),
-
-    sisaTungguMenit:
-      Number(
-        statusBreakData.sisaTungguMenit ||
-        0
-      ),
-
-    jumlahSedangBreak:
-      jumlahSedangBreak,
-
-    maksimalBreak:
-      kapasitasBreak.maksimalBreak,
-
-    kapasitasPenuh:
-      kapasitasPenuh,
-
-    warningKapasitas:
-      kapasitasPenuh
-        ? kapasitasBreak.warning
-        : ''
-  };
-
-  var ringkasan = {
-    breakOutlet: {
-      jumlahSedangBreak:
-        jumlahSedangBreak,
-
-      maksimalBreak:
-        kapasitasBreak.maksimalBreak,
-
-      kapasitasPenuh:
-        kapasitasPenuh,
-
-      teks:
-        jumlahSedangBreak +
-        ' dari ' +
-        kapasitasBreak.maksimalBreak +
-        ' orang sedang break'
-    },
-
-    breakInfo: {
-      break1:
-        breakInfo.break1.status,
-
-      break2:
-        breakInfo.break2.status,
-
-      teks:
-        'B1 ' +
-        apiLabelStatusBreak_(
-          breakInfo.break1.status
-        ) +
-        ' · B2 ' +
-        apiLabelStatusBreak_(
-          breakInfo.break2.status
-        )
-    },
-
-    tugasLuar: {
-      aktif: 0,
-      pulang: 0,
-      tersedia: false
-    },
-
-    pelanggaran: {
-      jumlah:
-        Number(
-          breakInfo.pelanggaran &&
-          breakInfo.pelanggaran.jumlah
-        ) || 0,
-
-      tersedia: true
-    },
-
-    overbreak: {
-      break1Menit:
-        Number(
-          breakInfo.break1.overtimeMenit
-        ) || 0,
-
-      break2Menit:
-        Number(
-          breakInfo.break2.overtimeMenit
-        ) || 0,
-
-      tersedia: true
-    }
-  };
-
-  var dataUtama = {
-    pengguna:
-      pengguna,
-
-    waktuServer: {
-      tanggal:
-        Utilities.formatDate(
-          sekarang,
-          zonaWaktu,
-          'dd/MM/yyyy'
-        ),
-
-      jam:
-        Utilities.formatDate(
-          sekarang,
-          zonaWaktu,
-          'HH:mm:ss'
-        ),
-
-      timestamp:
-        sekarang.getTime(),
-
-      zonaWaktu:
-        zonaWaktu,
-
-      modeUji:
-        Boolean(
-          infoWaktu.modeUjiAktif
-        ),
-
-      tambahMenitUji:
-        Number(
-          infoWaktu
-            .tambahMenitDiterapkan || 0
-        )
-    },
-
-    kehadiran:
-      kehadiran,
-
-    break:
-      breakData,
-
-    operasional: {
-      statusOperasional:
-        statusOperasional,
-
-      tombolUtama:
-        tombolUtama
-    },
-
-    ringkasan:
-      ringkasan,
-
-    dashboard: {
-      statusOutlet:
-        hasilDashboard.data
-          .statusOutlet || {},
-
-      ringkasanOutlet:
-        ringkasanDashboard,
-
-      statusSA:
-        statusSA
-    }
-  };
+  var infoWaktu = gttInfoWaktu_(user.pin);
+  var now = infoWaktu.sekarang;
+  var breakInfo = apiAmbilBreakInfoPribadi_(ss, user.pin, now, tz);
+  var settings = apiAmbilSettingBreak_(ss);
+  var breakState = apiBangunStatusBreak_(breakInfo, settings, now, tz);
+  var attendance = apiBangunKehadiran_(statusSA);
+  var summary = dashboard.data && dashboard.data.ringkasan
+    ? dashboard.data.ringkasan
+    : {};
+  var jumlahSedangBreak = Number(summary.sedangBreak || 0);
+  var capacityFull = jumlahSedangBreak >= settings.maxBreakBersamaan;
+  var button = apiTentukanTombolUtama_(
+    attendance,
+    statusSA,
+    breakState,
+    breakInfo,
+    capacityFull,
+    settings
+  );
 
   return {
     success: true,
-    code: 'DATA_SA_BERHASIL_DIBANGUN',
-    message:
-      'Data SA berhasil dibangun.',
-    data: dataUtama
-  };
-}
-
-
-/**
- * Menormalisasi data pengguna dari hasil login.
- *
- * @param {Object} dataLogin
- * @param {string|number} pinInput
- * @return {Object}
- */
-function apiNormalisasiPengguna_(
-  dataLogin,
-  pinInput
-) {
-  var sumber =
-    dataLogin || {};
-
-  var penggunaSumber =
-    sumber.pengguna || sumber;
-
-  return {
-    pin:
-      String(
-        penggunaSumber.pin ||
-        penggunaSumber.PIN ||
-        pinInput ||
-        ''
-      ).trim(),
-
-    namaSA:
-      String(
-        penggunaSumber.namaSA ||
-        penggunaSumber.nama ||
-        penggunaSumber.NAMA_SA ||
-        penggunaSumber['NAMA SA'] ||
-        ''
-      ).trim(),
-
-    outlet:
-      String(
-        penggunaSumber.outlet ||
-        penggunaSumber.OUTLET ||
-        ''
-      ).trim(),
-
-    jabatan:
-      String(
-        penggunaSumber.jabatan ||
-        penggunaSumber.JABATAN ||
-        penggunaSumber.role ||
-        ''
-      ).trim(),
-
-    statusAktif:
-      penggunaSumber.statusAktif !== false
-  };
-}
-
-
-/**
- * Menyusun data status kehadiran.
- *
- * @param {Object} statusSA
- * @return {Object}
- */
-function apiBangunKehadiran_(
-  statusSA
-) {
-  var sumber =
-    statusSA || {};
-
-  return {
-    sudahAbsenMasuk:
-      Boolean(
-        sumber.sudahAbsenMasuk ||
-        sumber.jamMasuk
-      ),
-
-    sudahPulang:
-      Boolean(
-        sumber.sudahPulang ||
-        sumber.jamPulang
-      ),
-
-    statusKehadiran:
-      String(
-        sumber.statusKehadiran ||
-        sumber.status ||
-        'BELUM ABSEN'
-      ).trim(),
-
-    statusJamMasuk:
-      String(
-        sumber.statusJamMasuk ||
-        ''
-      ).trim(),
-
-    jamMasuk:
-      apiFormatJam_(
-        sumber.jamMasuk
-      ),
-
-    jamPulang:
-      apiFormatJam_(
-        sumber.jamPulang
-      ),
-
-    terlambatMenit:
-      Number(
-        sumber.terlambatMenit || 0
-      ),
-
-    keterangan:
-      String(
-        sumber.keterangan || ''
-      ).trim()
-  };
-}
-
-// ===== API.GS - PART 2 END =====
-// ===== API.GS - PART 3 START =====
-
-/**
- * Menentukan tombol utama berdasarkan status SA.
- *
- * @param {Object} kehadiran
- * @param {Object} statusSA
- * @param {Object} statusBreakEngine
- * @param {Object} breakInfo
- * @param {boolean} kapasitasPenuh
- * @param {Object} kapasitasBreak
- * @return {Object}
- */
-function apiTentukanTombolUtama_(
-  kehadiran,
-  statusSA,
-  statusBreakEngine,
-  breakInfo,
-  kapasitasPenuh,
-  kapasitasBreak
-) {
-  var statusKehadiran =
-    apiNormalisasiTeks_(
-      kehadiran.statusKehadiran || ''
-    );
-
-  var jamPulang =
-    String(
-      kehadiran.jamPulang || ''
-    ).trim();
-
-  var statusOperasionalSA =
-    apiNormalisasiTeks_(
-      statusSA.statusOperasional || ''
-    );
-
-  var tombolEngine =
-    apiNormalisasiTeks_(
-      statusBreakEngine.tombolBerikutnya ||
-      statusBreakEngine.tombol ||
-      ''
-    );
-
-  var aksiEngineDiizinkan =
-    statusBreakEngine.aksiDiizinkan !==
-    false;
-
-  var alasanEngine =
-    String(
-      statusBreakEngine.alasanTerkunci ||
-      ''
-    ).trim();
-
-  if (
-    statusKehadiran === 'BELUM ABSEN' ||
-    !kehadiran.sudahAbsenMasuk ||
-    tombolEngine === 'ABSEN MASUK'
-  ) {
-    return apiBuatTombol_(
-      'ABSEN_MASUK',
-      'ABSEN MASUK',
-      true,
-      ''
-    );
-  }
-
-  if (
-    kehadiran.sudahPulang ||
-    jamPulang ||
-    statusOperasionalSA ===
-      'SUDAH PULANG'
-  ) {
-    return apiBuatTombol_(
-      'SELESAI',
-      'SELESAI',
-      false,
-      'Absensi hari ini sudah selesai.'
-    );
-  }
-
-  var tombolDariEngine = {
-    'MULAI BREAK 1': {
-      aksi: 'MULAI_BREAK_1',
-      label: 'MULAI BREAK 1'
-    },
-
-    'SELESAI BREAK 1': {
-      aksi: 'SELESAI_BREAK_1',
-      label: 'SELESAI BREAK 1'
-    },
-
-    'MULAI BREAK 2': {
-      aksi: 'MULAI_BREAK_2',
-      label: 'MULAI BREAK 2'
-    },
-
-    'SELESAI BREAK 2': {
-      aksi: 'SELESAI_BREAK_2',
-      label: 'SELESAI BREAK 2'
-    },
-
-    'ABSEN PULANG': {
-      aksi: 'ABSEN_PULANG',
-      label: 'PULANG'
-    },
-
-    'PULANG': {
-      aksi: 'ABSEN_PULANG',
-      label: 'PULANG'
+    code: successCode,
+    message: 'Data dashboard berhasil dimuat.',
+    data: {
+      pengguna: user,
+      waktuServer: {
+        tanggal: Utilities.formatDate(now, tz, 'dd/MM/yyyy'),
+        jam: Utilities.formatDate(now, tz, 'HH:mm:ss'),
+        timestamp: now.getTime(),
+        zonaWaktu: tz,
+        modeUji: Boolean(infoWaktu.modeUjiAktif),
+        tambahMenitUji: Number(infoWaktu.tambahMenitDiterapkan || 0)
+      },
+      kehadiran: attendance,
+      break: {
+        statusOperasional: String(statusSA.statusOperasional || breakState.statusOperasional || 'BELUM ABSEN'),
+        break1: breakInfo.break1,
+        break2: breakInfo.break2,
+        overbreakMenit: {
+          break1: Number(breakInfo.break1.overtimeMenit || 0),
+          break2: Number(breakInfo.break2.overtimeMenit || 0)
+        },
+        seluruhBreakSelesai: breakInfo.break1.status === 'SELESAI' && breakInfo.break2.status === 'SELESAI',
+        break1Dilewati: breakInfo.break1.status === 'DILEWATI',
+        aksiDiizinkan: breakState.aksiDiizinkan,
+        alasanTerkunci: breakState.alasanTerkunci,
+        kodeTerkunci: breakState.kodeTerkunci,
+        tersediaPada: breakState.tersediaPada,
+        sisaTungguMenit: breakState.sisaTungguMenit,
+        jumlahSedangBreak: jumlahSedangBreak,
+        maksimalBreak: settings.maxBreakBersamaan,
+        kapasitasPenuh: capacityFull,
+        warningKapasitas: capacityFull ? settings.warningKapasitas : ''
+      },
+      operasional: {
+        statusOperasional: String(statusSA.statusOperasional || breakState.statusOperasional || 'BELUM ABSEN'),
+        tombolUtama: button
+      },
+      ringkasan: {
+        breakOutlet: {
+          jumlahSedangBreak: jumlahSedangBreak,
+          maksimalBreak: settings.maxBreakBersamaan,
+          kapasitasPenuh: capacityFull,
+          teks: jumlahSedangBreak + ' dari ' + settings.maxBreakBersamaan + ' orang sedang break'
+        },
+        breakInfo: {
+          break1: breakInfo.break1.status,
+          break2: breakInfo.break2.status,
+          teks: 'B1 ' + apiLabelStatusBreak_(breakInfo.break1.status) +
+            ' · B2 ' + apiLabelStatusBreak_(breakInfo.break2.status)
+        },
+        tugasLuar: { aktif: 0, pulang: 0, tersedia: false },
+        pelanggaran: {
+          jumlah: Number(breakInfo.pelanggaran.jumlah || 0),
+          tersedia: true
+        },
+        overbreak: {
+          break1Menit: Number(breakInfo.break1.overtimeMenit || 0),
+          break2Menit: Number(breakInfo.break2.overtimeMenit || 0),
+          tersedia: true
+        }
+      },
+      dashboard: {
+        statusOutlet: dashboard.data.statusOutlet || {},
+        ringkasanOutlet: summary,
+        statusSA: statusSA
+      }
     }
   };
-
-  if (tombolDariEngine[tombolEngine]) {
-    var model =
-      tombolDariEngine[tombolEngine];
-
-    var aksiMulaiBreak =
-      model.aksi === 'MULAI_BREAK_1' ||
-      model.aksi === 'MULAI_BREAK_2';
-
-    var kapasitasMengunci =
-      aksiMulaiBreak &&
-      kapasitasPenuh;
-
-    var aktif =
-      aksiMulaiBreak
-        ? (
-            aksiEngineDiizinkan &&
-            !kapasitasMengunci
-          )
-        : true;
-
-    var alasan = '';
-
-    if (!aksiEngineDiizinkan) {
-      alasan = alasanEngine;
-    } else if (kapasitasMengunci) {
-      alasan =
-        String(
-          kapasitasBreak.warning || ''
-        ).trim();
-    }
-
-    return apiBuatTombol_(
-      model.aksi,
-      model.label,
-      aktif,
-      alasan
-    );
-  }
-
-  if (
-    breakInfo.break1.status ===
-    'SEDANG BREAK'
-  ) {
-    return apiBuatTombol_(
-      'SELESAI_BREAK_1',
-      'SELESAI BREAK 1',
-      true,
-      ''
-    );
-  }
-
-  if (
-    breakInfo.break2.status ===
-    'SEDANG BREAK'
-  ) {
-    return apiBuatTombol_(
-      'SELESAI_BREAK_2',
-      'SELESAI BREAK 2',
-      true,
-      ''
-    );
-  }
-
-  if (
-    breakInfo.break1.status ===
-      'BELUM DIAMBIL' &&
-    breakInfo.break2.status ===
-      'BELUM DIAMBIL'
-  ) {
-    return apiBuatTombol_(
-      'MULAI_BREAK_1',
-      'MULAI BREAK 1',
-      !kapasitasPenuh,
-      kapasitasPenuh
-        ? String(
-            kapasitasBreak.warning || ''
-          ).trim()
-        : ''
-    );
-  }
-
-  if (
-    breakInfo.break1.status ===
-      'SELESAI' &&
-    breakInfo.break2.status ===
-      'BELUM DIAMBIL'
-  ) {
-    return apiBuatTombol_(
-      'MULAI_BREAK_2',
-      'MULAI BREAK 2',
-      aksiEngineDiizinkan &&
-      !kapasitasPenuh,
-      !aksiEngineDiizinkan
-        ? alasanEngine
-        : (
-            kapasitasPenuh
-              ? String(
-                  kapasitasBreak.warning ||
-                  ''
-                ).trim()
-              : ''
-          )
-    );
-  }
-
-  if (
-    breakInfo.break1.status ===
-      'SELESAI' &&
-    breakInfo.break2.status ===
-      'SELESAI'
-  ) {
-    return apiBuatTombol_(
-      'ABSEN_PULANG',
-      'PULANG',
-      true,
-      ''
-    );
-  }
-
-  return apiBuatTombol_(
-    'REFRESH',
-    'PERBARUI STATUS',
-    true,
-    ''
-  );
 }
 
+function apiBangunStatusBreak_(breakInfo, settings, now, tz) {
+  var result = {
+    statusOperasional: 'AKTIF BEKERJA',
+    tombolBerikutnya: 'MULAI BREAK 1',
+    aksiDiizinkan: true,
+    alasanTerkunci: '',
+    kodeTerkunci: '',
+    tersediaPada: '',
+    sisaTungguMenit: 0
+  };
 
-/**
- * Membuat model tombol utama.
- *
- * @param {string} aksi
- * @param {string} label
- * @param {boolean} aktif
- * @param {string} alasan
- * @return {Object}
- */
-function apiBuatTombol_(
-  aksi,
-  label,
-  aktif,
-  alasan
-) {
+  if (breakInfo.break1.status === 'SEDANG BREAK') {
+    result.statusOperasional = 'BREAK 1';
+    result.tombolBerikutnya = 'SELESAI BREAK 1';
+    return result;
+  }
+  if (breakInfo.break2.status === 'SEDANG BREAK') {
+    result.statusOperasional = 'BREAK 2';
+    result.tombolBerikutnya = 'SELESAI BREAK 2';
+    return result;
+  }
+  if (breakInfo.break1.status === 'BELUM DIAMBIL') {
+    result.tombolBerikutnya = 'MULAI BREAK 1';
+    return result;
+  }
+  if (breakInfo.break1.status === 'SELESAI' && breakInfo.break2.status === 'BELUM DIAMBIL') {
+    result.tombolBerikutnya = 'MULAI BREAK 2';
+    var selesai1 = apiNilaiKeDate_(breakInfo.break1.selesaiRaw, now, tz);
+    if (selesai1) {
+      var available = new Date(selesai1.getTime() + settings.jedaBreak1KeBreak2 * 60000);
+      var diff = Math.ceil((available.getTime() - now.getTime()) / 60000);
+      if (diff > 0) {
+        result.aksiDiizinkan = false;
+        result.kodeTerkunci = 'JEDA_BREAK_2_BELUM_TERPENUHI';
+        result.tersediaPada = Utilities.formatDate(available, tz, 'HH:mm');
+        result.sisaTungguMenit = diff;
+        result.alasanTerkunci = apiIsiTemplate_(settings.warningJedaBreak2, {
+          JAM: result.tersediaPada,
+          MENIT: String(diff)
+        });
+      }
+    }
+    return result;
+  }
+  if (breakInfo.break1.status === 'SELESAI' && breakInfo.break2.status === 'SELESAI') {
+    result.tombolBerikutnya = 'PULANG';
+  }
+  return result;
+}
+
+function apiTentukanTombolUtama_(attendance, statusSA, breakState, breakInfo, capacityFull, settings) {
+  if (!attendance.sudahAbsenMasuk) {
+    return apiBuatTombol_('ABSEN_MASUK', 'ABSEN MASUK', true, '');
+  }
+  if (attendance.sudahPulang) {
+    return apiBuatTombol_('SELESAI', 'SELESAI', false, 'Absensi hari ini sudah selesai.');
+  }
+
+  var map = {
+    'MULAI BREAK 1': ['MULAI_BREAK_1', 'MULAI BREAK 1'],
+    'SELESAI BREAK 1': ['SELESAI_BREAK_1', 'SELESAI BREAK 1'],
+    'MULAI BREAK 2': ['MULAI_BREAK_2', 'MULAI BREAK 2'],
+    'SELESAI BREAK 2': ['SELESAI_BREAK_2', 'SELESAI BREAK 2'],
+    'PULANG': ['ABSEN_PULANG', 'PULANG']
+  };
+  var key = apiNormalisasiTeks_(breakState.tombolBerikutnya);
+  var model = map[key] || ['REFRESH', 'PERBARUI STATUS'];
+  var isStartBreak = model[0] === 'MULAI_BREAK_1' || model[0] === 'MULAI_BREAK_2';
+  var enabled = breakState.aksiDiizinkan !== false && !(isStartBreak && capacityFull);
+  var reason = breakState.alasanTerkunci || '';
+  if (isStartBreak && capacityFull) reason = settings.warningKapasitas;
+  return apiBuatTombol_(model[0], model[1], enabled, reason);
+}
+
+function apiBuatTombol_(action, label, enabled, reason) {
   return {
-    aksi:
-      String(aksi || '').trim(),
-
-    label:
-      String(label || '').trim(),
-
-    aktif:
-      Boolean(aktif),
-
-    alasan:
-      String(alasan || '').trim()
+    aksi: String(action || ''),
+    label: String(label || ''),
+    aktif: Boolean(enabled),
+    alasan: String(reason || '')
   };
 }
 
+function apiNormalisasiPengguna_(data, pinInput) {
+  var source = data || {};
+  return {
+    saId: String(source.saId || source.SA_ID || '').trim(),
+    pin: String(source.pin || source.PIN || pinInput || '').trim(),
+    namaSA: String(source.namaSA || source.nama || source['NAMA SA'] || '').trim(),
+    outlet: String(source.outlet || source.OUTLET || '').trim(),
+    status: String(source.status || source.STATUS || '').trim().toUpperCase(),
+    jabatan: String(source.jabatan || source.JABATAN || '').trim(),
+    role: String(source.role || source.ROLE || 'SA').trim().toUpperCase()
+  };
+}
 
-/**
- * Mencari status SA pada daftar dashboard.
- *
- * @param {Array} daftarStatus
- * @param {string|number} pinInput
- * @return {Object|null}
- */
-function apiCariStatusSaDashboard_(
-  daftarStatus,
-  pinInput
-) {
-  var targetPin =
-    String(pinInput || '').trim();
+function apiBangunKehadiran_(statusSA) {
+  var source = statusSA || {};
+  var jamMasuk = apiFormatJam_(source.jamMasuk);
+  var jamPulang = apiFormatJam_(source.jamPulang);
+  return {
+    sudahAbsenMasuk: Boolean(jamMasuk),
+    sudahPulang: Boolean(jamPulang),
+    statusKehadiran: String(source.statusKehadiran || 'BELUM ABSEN'),
+    statusJamMasuk: String(source.statusJamMasuk || ''),
+    statusJamPulang: String(source.statusJamPulang || ''),
+    jamMasuk: jamMasuk,
+    jamPulang: jamPulang,
+    terlambatMenit: Number(source.terlambatMenit || 0),
+    keterangan: String(source.keterangan || '')
+  };
+}
 
-  if (
-    !Array.isArray(daftarStatus) ||
-    !targetPin
-  ) {
-    return null;
+function apiCariStatusSaDashboard_(list, pinInput) {
+  var pin = String(pinInput || '').trim();
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i].pin || '').trim() === pin) return list[i];
   }
-
-  for (
-    var index = 0;
-    index < daftarStatus.length;
-    index++
-  ) {
-    var item =
-      daftarStatus[index] || {};
-
-    var pinItem =
-      String(
-        item.pin ||
-        item.PIN ||
-        ''
-      ).trim();
-
-    if (pinItem === targetPin) {
-      return item;
-    }
-  }
-
   return null;
 }
 
 
 /**
- * Mengubah status Break menjadi label UI.
+ * Membuat status SA langsung dari ABSENSI_HARIAN ketika daftarStatus
+ * Dashboard belum tersedia atau belum selesai diperbarui.
  *
- * @param {*} status
- * @return {string}
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss
+ * @param {Object} user
+ * @param {string} tz
+ * @return {Object}
  */
+function apiBangunStatusSaFallback_(ss, user, tz) {
+  var fallback = {
+    pin: String(user.pin || '').trim(),
+    namaSA: String(user.namaSA || '').trim(),
+    outlet: String(user.outlet || '').trim(),
+    statusKehadiran: 'BELUM ABSEN',
+    statusJamMasuk: '',
+    statusJamPulang: '',
+    jamMasuk: '',
+    jamPulang: '',
+    terlambatMenit: 0,
+    statusOperasional: 'BELUM ABSEN',
+    keterangan: '',
+    sumberData: 'FALLBACK_ABSENSI_HARIAN'
+  };
+
+  if (!ss) return fallback;
+
+  var sheet = ss.getSheetByName('ABSENSI_HARIAN');
+  if (!sheet || sheet.getLastRow() < 2) return fallback;
+
+  var values = sheet.getDataRange().getValues();
+  if (!values || values.length < 2) return fallback;
+
+  var headers = apiHeaderMap_(values[0]);
+  var pinIndex = apiHeaderIndex_(headers, ['PIN']);
+  var dateIndex = apiHeaderIndex_(headers, ['TANGGAL']);
+
+  if (pinIndex < 0 || dateIndex < 0) return fallback;
+
+  var targetPin = String(user.pin || '').trim();
+  var targetDate = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+  for (var i = values.length - 1; i >= 1; i--) {
+    var row = values[i];
+    var rowPin = String(row[pinIndex] || '').trim();
+    if (rowPin !== targetPin) continue;
+
+    var rowDate = apiFormatTanggalIso_(row[dateIndex], tz);
+    if (rowDate !== targetDate) continue;
+
+    var jamMasukIndex = apiHeaderIndex_(headers, ['JAM MASUK']);
+    var jamPulangIndex = apiHeaderIndex_(headers, ['JAM PULANG']);
+    var statusKehadiranIndex = apiHeaderIndex_(headers, ['STATUS KEHADIRAN']);
+    var statusJamMasukIndex = apiHeaderIndex_(headers, ['STATUS JAM MASUK']);
+    var statusJamPulangIndex = apiHeaderIndex_(headers, ['STATUS JAM PULANG']);
+    var terlambatIndex = apiHeaderIndex_(headers, ['TERLAMBAT MENIT']);
+    var keteranganIndex = apiHeaderIndex_(headers, ['KETERANGAN']);
+
+    fallback.jamMasuk = jamMasukIndex >= 0
+      ? apiFormatJam_(row[jamMasukIndex])
+      : '';
+    fallback.jamPulang = jamPulangIndex >= 0
+      ? apiFormatJam_(row[jamPulangIndex])
+      : '';
+    fallback.statusKehadiran = statusKehadiranIndex >= 0
+      ? String(row[statusKehadiranIndex] || 'BELUM ABSEN')
+      : (fallback.jamMasuk ? 'HADIR' : 'BELUM ABSEN');
+    fallback.statusJamMasuk = statusJamMasukIndex >= 0
+      ? String(row[statusJamMasukIndex] || '')
+      : '';
+    fallback.statusJamPulang = statusJamPulangIndex >= 0
+      ? String(row[statusJamPulangIndex] || '')
+      : '';
+    fallback.terlambatMenit = terlambatIndex >= 0
+      ? Number(row[terlambatIndex] || 0)
+      : 0;
+    fallback.keterangan = keteranganIndex >= 0
+      ? String(row[keteranganIndex] || '')
+      : '';
+    fallback.statusOperasional = fallback.jamPulang
+      ? 'SUDAH PULANG'
+      : (fallback.jamMasuk ? 'AKTIF BEKERJA' : 'BELUM ABSEN');
+
+    return fallback;
+  }
+
+  return fallback;
+}
+
+function apiAmbilBreakInfoPribadi_(ss, pinInput, now, tz) {
+  var empty = apiBreakKosong_();
+  var sheet = ss.getSheetByName('LOG_ISTIRAHAT');
+  if (!sheet || sheet.getLastRow() < 2) return empty;
+
+  var values = sheet.getDataRange().getValues();
+  var headers = apiHeaderMap_(values[0]);
+  var pinIndex = apiHeaderIndex_(headers, ['PIN']);
+  var dateIndex = apiHeaderIndex_(headers, ['TANGGAL']);
+  if (pinIndex < 0 || dateIndex < 0) return empty;
+
+  var targetPin = String(pinInput || '').trim();
+  var targetDate = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  var row = null;
+  for (var i = values.length - 1; i >= 1; i--) {
+    if (String(values[i][pinIndex] || '').trim() !== targetPin) continue;
+    if (apiFormatTanggalIso_(values[i][dateIndex], tz) !== targetDate) continue;
+    row = values[i];
+    break;
+  }
+  if (!row) return empty;
+
+  var b1 = apiBreakDariBaris_(row, headers, 'S1', tz);
+  var b2 = apiBreakDariBaris_(row, headers, 'S2', tz);
+  var violations = (b1.overtimeMenit > 0 ? 1 : 0) + (b2.overtimeMenit > 0 ? 1 : 0);
+  return {
+    break1: b1,
+    break2: b2,
+    pelanggaran: {
+      jumlah: violations,
+      totalOvertimeMenit: b1.overtimeMenit + b2.overtimeMenit,
+      totalSanksi: b1.sanksi + b2.sanksi
+    }
+  };
+}
+
+function apiBreakKosong_() {
+  return {
+    break1: { status: 'BELUM DIAMBIL', mulai: '', selesai: '', mulaiRaw: '', selesaiRaw: '', durasiMenit: 0, overtimeMenit: 0, sanksi: 0 },
+    break2: { status: 'BELUM DIAMBIL', mulai: '', selesai: '', mulaiRaw: '', selesaiRaw: '', durasiMenit: 0, overtimeMenit: 0, sanksi: 0 },
+    pelanggaran: { jumlah: 0, totalOvertimeMenit: 0, totalSanksi: 0 }
+  };
+}
+
+function apiBreakDariBaris_(row, headers, prefix, tz) {
+  var mulaiRaw = apiCell_(row, headers, prefix + ' MULAI');
+  var selesaiRaw = apiCell_(row, headers, prefix + ' SELESAI');
+  var storedStatus = apiNormalisasiTeks_(apiCell_(row, headers, prefix + ' STATUS'));
+  var status = 'BELUM DIAMBIL';
+  if (mulaiRaw && !selesaiRaw) status = 'SEDANG BREAK';
+  if (mulaiRaw && selesaiRaw) status = 'SELESAI';
+  if (storedStatus === 'DILEWATI') status = 'DILEWATI';
+  return {
+    status: status,
+    mulai: apiFormatJamDenganZona_(mulaiRaw, tz),
+    selesai: apiFormatJamDenganZona_(selesaiRaw, tz),
+    mulaiRaw: mulaiRaw,
+    selesaiRaw: selesaiRaw,
+    durasiMenit: Number(apiCell_(row, headers, prefix + ' DURASI') || 0),
+    overtimeMenit: Number(apiCell_(row, headers, prefix + ' OVERTIME') || 0),
+    statusTersimpan: storedStatus,
+    sanksi: Number(apiCell_(row, headers, prefix + ' SANKSI') || 0)
+  };
+}
+
+function apiAmbilSettingBreak_(ss) {
+  var result = {
+    maxBreakBersamaan: 5,
+    jedaBreak1KeBreak2: 120,
+    warningKapasitas: 'Kapasitas break sedang penuh. Silakan menunggu SA lain menyelesaikan break.',
+    warningJedaBreak2: 'ANDA BARU MENYELESAIKAN BREAK 1. LANJUTKAN BEKERJA TERLEBIH DAHULU. BREAK 2 DAPAT DIMULAI PUKUL {{JAM}}.'
+  };
+  var sheet = ss.getSheetByName('MASTER_SETTING');
+  if (!sheet || sheet.getLastRow() < 2) return result;
+  var rows = sheet.getDataRange().getDisplayValues();
+  for (var i = 1; i < rows.length; i++) {
+    var key = apiNormalisasiTeks_(rows[i][0]);
+    var value = rows[i][1];
+    var warning = String(rows[i][2] || '').trim();
+    if (key === 'BREAK - MAKSIMAL SA BREAK BERSAMAAN') {
+      result.maxBreakBersamaan = apiPositiveNumber_(value, result.maxBreakBersamaan);
+      if (warning) result.warningKapasitas = warning;
+    }
+    if (key === 'JEDA BREAK 1 KE BREAK 2 (MENIT)') {
+      result.jedaBreak1KeBreak2 = apiPositiveNumber_(value, result.jedaBreak1KeBreak2);
+      if (warning) result.warningJedaBreak2 = warning;
+    }
+  }
+  return result;
+}
+
+function apiHeaderMap_(headerRow) {
+  var map = {};
+  for (var i = 0; i < headerRow.length; i++) {
+    var key = apiNormalisasiTeks_(headerRow[i]);
+    if (key) map[key] = i;
+  }
+  return map;
+}
+
+function apiHeaderIndex_(map, candidates) {
+  for (var i = 0; i < candidates.length; i++) {
+    var key = apiNormalisasiTeks_(candidates[i]);
+    if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+  }
+  return -1;
+}
+
+function apiCell_(row, map, header) {
+  var index = apiHeaderIndex_(map, [header]);
+  return index >= 0 ? row[index] : '';
+}
+
+function apiNormalisasiTeks_(value) {
+  return String(value === null || value === undefined ? '' : value).trim().toUpperCase();
+}
+
+function apiFormatJam_(value) {
+  return apiFormatJamDenganZona_(value, Session.getScriptTimeZone());
+}
+
+function apiFormatJamDenganZona_(value, tz) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, tz, 'HH:mm:ss');
+  }
+  var text = String(value).trim();
+  var match = text.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return text;
+  return String(match[1]).padStart(2, '0') + ':' + match[2] + ':' + String(match[3] || '00').padStart(2, '0');
+}
+
+function apiFormatTanggalIso_(value, tz) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return Utilities.formatDate(value, tz, 'yyyy-MM-dd');
+  }
+  var text = String(value).trim();
+  var ymd = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (ymd) return ymd[1] + '-' + String(ymd[2]).padStart(2, '0') + '-' + String(ymd[3]).padStart(2, '0');
+  var dmy = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (dmy) return dmy[3] + '-' + String(dmy[2]).padStart(2, '0') + '-' + String(dmy[1]).padStart(2, '0');
+  var date = new Date(text);
+  return isNaN(date.getTime()) ? text : Utilities.formatDate(date, tz, 'yyyy-MM-dd');
+}
+
+function apiNilaiKeDate_(value, referenceDate, tz) {
+  if (!value) return null;
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) return value;
+  var time = apiFormatJamDenganZona_(value, tz);
+  var match = time.match(/^(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  var date = new Date(referenceDate.getTime());
+  date.setHours(Number(match[1]), Number(match[2]), Number(match[3]), 0);
+  return date;
+}
+
+function apiPositiveNumber_(value, fallback) {
+  var n = Number(value);
+  return !isNaN(n) && n > 0 ? n : fallback;
+}
+
+function apiIsiTemplate_(template, replacements) {
+  var text = String(template || '');
+  Object.keys(replacements || {}).forEach(function (key) {
+    text = text.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), String(replacements[key]));
+  });
+  return text;
+}
+
 function apiLabelStatusBreak_(status) {
-  var nilai =
-    apiNormalisasiTeks_(status);
-
-  if (nilai === 'SELESAI') {
-    return 'Selesai';
-  }
-
-  if (nilai === 'SEDANG BREAK') {
-    return 'Sedang Break';
-  }
-
-  if (nilai === 'DILEWATI') {
-    return 'Dilewati';
-  }
-
+  var value = apiNormalisasiTeks_(status);
+  if (value === 'SELESAI') return 'Selesai';
+  if (value === 'SEDANG BREAK') return 'Sedang Break';
+  if (value === 'DILEWATI') return 'Dilewati';
   return 'Belum diambil';
 }
 
-// ===== API.GS - PART 3 END =====
+function apiJalankan_(processName, callback) {
+  var started = new Date();
+  try {
+    if (typeof callback !== 'function') throw new Error('Callback API tidak valid.');
+    var result = callback();
+    if (!result || typeof result !== 'object') {
+      result = { success: false, code: 'API_RESPONSE_TIDAK_VALID', message: 'Respons API tidak valid.' };
+    }
+    result.meta = apiBuatMeta_(processName, started);
+    return result;
+  } catch (error) {
+    console.error('[' + processName + ']', error && error.stack ? error.stack : error);
+    return {
+      success: false,
+      code: 'API_SYSTEM_ERROR',
+      message: 'Terjadi kesalahan sistem: ' + (error && error.message ? error.message : String(error)),
+      meta: apiBuatMeta_(processName, started)
+    };
+  }
+}
+
+function apiBuatMeta_(processName, started) {
+  var finished = new Date();
+  return {
+    proses: String(processName || ''),
+    durasiMs: finished.getTime() - started.getTime(),
+    timestamp: finished.toISOString()
+  };
+}
+
+function testApiGs() {
+  var health = apiHealthCheck();
+  var result = {
+    success: Boolean(health && typeof health.success === 'boolean'),
+    code: health && typeof health.success === 'boolean' ? 'TEST_API_PASS' : 'TEST_API_FAIL',
+    message: health && typeof health.success === 'boolean' ? 'Struktur Api.gs berhasil diuji.' : 'Struktur Api.gs belum valid.',
+    data: { healthCheck: health }
+  };
+  console.log(JSON.stringify(result, null, 2));
+  return result;
+}

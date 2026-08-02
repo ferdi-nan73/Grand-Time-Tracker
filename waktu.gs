@@ -1,14 +1,10 @@
 /**
  * =====================================================
  * GRAND TIME TRACKER — GTT
- * Module : GTT-06 Mode Uji Waktu
- * Version: 1.0.0
- * Status : Development — MENUNGGU UJI WEB APP
+ * Module : Mode Uji Waktu
+ * Version: 1.1.0
+ * Sprint : GTT-002
  * =====================================================
- *
- * Fungsi publik internal:
- * - gttSekarang_(pinInput)
- * - gttInfoWaktu_(pinInput)
  *
  * Parameter MASTER_SETTING:
  * - MODE UJI WAKTU
@@ -16,27 +12,15 @@
  * - TAMBAH MENIT UJI
  */
 
-
-const GTT_SETTING_MODE_UJI_WAKTU_ =
-  'MODE UJI WAKTU';
-
-const GTT_SETTING_PIN_UJI_WAKTU_ =
-  'PIN UJI WAKTU';
-
-const GTT_SETTING_TAMBAH_MENIT_UJI_ =
-  'TAMBAH MENIT UJI';
-
-const GTT_CACHE_MODE_UJI_WAKTU_ =
-  'GTT_MODE_UJI_WAKTU_V1';
-
-const GTT_CACHE_MODE_UJI_DETIK_ = 10;
-
-const GTT_BATAS_MENIT_UJI_ = 1440;
-
+var GTT_SETTING_MODE_UJI_WAKTU_ = 'MODE UJI WAKTU';
+var GTT_SETTING_PIN_UJI_WAKTU_ = 'PIN UJI WAKTU';
+var GTT_SETTING_TAMBAH_MENIT_UJI_ = 'TAMBAH MENIT UJI';
+var GTT_CACHE_MODE_UJI_WAKTU_ = 'GTT_MODE_UJI_WAKTU_V1_1';
+var GTT_CACHE_MODE_UJI_DETIK_ = 10;
+var GTT_BATAS_MENIT_UJI_ = 1440;
 
 /**
- * Menghasilkan waktu yang dipakai transaksi GTT.
- * Waktu uji hanya diterapkan kepada PIN uji.
+ * Waktu transaksi GTT. Tambahan waktu hanya berlaku untuk PIN uji.
  *
  * @param {string|number} pinInput
  * @return {Date}
@@ -45,23 +29,23 @@ function gttSekarang_(pinInput) {
   return gttInfoWaktu_(pinInput).sekarang;
 }
 
-
 /**
- * Menghasilkan informasi waktu lengkap untuk API/UI.
+ * Informasi waktu lengkap untuk backend/API/UI.
  *
  * @param {string|number} pinInput
  * @return {Object}
  */
 function gttInfoWaktu_(pinInput) {
-  const waktuServerAsli = new Date();
-  const konfigurasi = gttAmbilKonfigurasiWaktu_();
-  const pin = String(pinInput || '').trim();
-
-  const modeUjiAktif =
+  var waktuServerAsli = new Date();
+  var konfigurasi = gttAmbilKonfigurasiWaktu_();
+  var pin = String(pinInput || '').trim();
+  var modeUjiAktif = Boolean(
     konfigurasi.aktif === true &&
-    pin === konfigurasi.pinUji;
+    pin !== '' &&
+    pin === konfigurasi.pinUji
+  );
 
-  const sekarang = gttHitungWaktuUji_(
+  var sekarang = gttHitungWaktuUji_(
     waktuServerAsli,
     pin,
     konfigurasi
@@ -72,116 +56,99 @@ function gttInfoWaktu_(pinInput) {
     waktuServerAsli: waktuServerAsli,
     modeUjiAktif: modeUjiAktif,
     pinUji: konfigurasi.pinUji,
-    tambahMenitDiterapkan:
-      modeUjiAktif
-        ? konfigurasi.tambahMenit
-        : 0
+    tambahMenitDiterapkan: modeUjiAktif
+      ? konfigurasi.tambahMenit
+      : 0,
+    timestampServerAsli: waktuServerAsli.getTime(),
+    timestampDigunakan: sekarang.getTime()
   };
 }
 
-
 /**
- * Membaca dan memvalidasi konfigurasi Mode Uji Waktu.
- * Cache singkat mencegah pembacaan Sheet pada setiap detik refresh.
+ * Membaca konfigurasi Mode Uji Waktu dari MASTER_SETTING.
  *
  * @return {Object}
  */
 function gttAmbilKonfigurasiWaktu_() {
-  const cache = CacheService.getScriptCache();
-  const tersimpan = cache.get(
-    GTT_CACHE_MODE_UJI_WAKTU_
-  );
+  var cache = CacheService.getScriptCache();
+  var tersimpan = cache.get(GTT_CACHE_MODE_UJI_WAKTU_);
 
   if (tersimpan) {
     try {
       return JSON.parse(tersimpan);
-    } catch (error) {
+    } catch (errorCache) {
       cache.remove(GTT_CACHE_MODE_UJI_WAKTU_);
     }
   }
 
-  const spreadsheet =
-    SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
-  const sheet =
-    spreadsheet.getSheetByName('MASTER_SETTING');
+  if (!spreadsheet) {
+    throw new Error('Spreadsheet aktif GTT tidak ditemukan.');
+  }
+
+  var sheet = spreadsheet.getSheetByName('MASTER_SETTING');
 
   if (!sheet) {
-    throw new Error(
-      'Sheet MASTER_SETTING tidak ditemukan.'
-    );
+    throw new Error('Sheet MASTER_SETTING tidak ditemukan.');
   }
 
-  const barisTerakhir = sheet.getLastRow();
+  var barisTerakhir = sheet.getLastRow();
 
   if (barisTerakhir <= 1) {
-    throw new Error(
-      'MASTER_SETTING masih kosong.'
-    );
+    throw new Error('MASTER_SETTING masih kosong.');
   }
 
-  const data = sheet
-    .getRange(
-      2,
-      1,
-      barisTerakhir - 1,
-      Math.min(2, sheet.getLastColumn())
-    )
+  var jumlahKolom = Math.max(2, Math.min(3, sheet.getLastColumn()));
+  var data = sheet
+    .getRange(2, 1, barisTerakhir - 1, jumlahKolom)
     .getDisplayValues();
 
-  const settingMap = {};
+  var settingMap = {};
 
   data.forEach(function (baris) {
-    const parameter = gttNormalisasiSettingWaktu_(
-      baris[0]
-    );
+    var parameter = gttNormalisasiSettingWaktu_(baris[0]);
 
     if (parameter) {
-      settingMap[parameter] =
-        String(baris[1] || '').trim();
+      settingMap[parameter] = String(baris[1] || '').trim();
     }
   });
 
-  const mode = gttWajibSettingWaktu_(
+  var mode = gttWajibSettingWaktu_(
     settingMap,
     GTT_SETTING_MODE_UJI_WAKTU_
   ).toUpperCase();
 
-  const pinUji = gttWajibSettingWaktu_(
+  var pinUji = gttWajibSettingWaktu_(
     settingMap,
     GTT_SETTING_PIN_UJI_WAKTU_
   );
 
-  const teksTambahMenit = gttWajibSettingWaktu_(
+  var teksTambahMenit = gttWajibSettingWaktu_(
     settingMap,
     GTT_SETTING_TAMBAH_MENIT_UJI_
   );
 
-  if (!['YA', 'TIDAK'].includes(mode)) {
-    throw new Error(
-      'MODE UJI WAKTU harus bernilai YA atau TIDAK.'
-    );
+  if (mode !== 'YA' && mode !== 'TIDAK') {
+    throw new Error('MODE UJI WAKTU harus bernilai YA atau TIDAK.');
   }
 
   if (!/^\d{4}$/.test(pinUji)) {
-    throw new Error(
-      'PIN UJI WAKTU harus terdiri dari 4 angka.'
-    );
+    throw new Error('PIN UJI WAKTU harus terdiri dari 4 angka.');
   }
 
-  const tambahMenit = Number(teksTambahMenit);
+  var tambahMenit = Number(teksTambahMenit);
 
   if (
     !Number.isInteger(tambahMenit) ||
     Math.abs(tambahMenit) > GTT_BATAS_MENIT_UJI_
   ) {
     throw new Error(
-      'TAMBAH MENIT UJI harus berupa bilangan bulat ' +
-      'antara -1440 sampai 1440.'
+      'TAMBAH MENIT UJI harus berupa bilangan bulat antara -1440 sampai 1440.'
     );
   }
 
-  const konfigurasi = {
+  var konfigurasi = {
     aktif: mode === 'YA',
     pinUji: pinUji,
     tambahMenit: tambahMenit
@@ -196,63 +163,52 @@ function gttAmbilKonfigurasiWaktu_() {
   return konfigurasi;
 }
 
-
 /**
- * Fungsi murni untuk menghitung waktu hasil simulasi.
- * Dipisahkan supaya dapat diuji tanpa akses Spreadsheet.
+ * Fungsi murni penghitung waktu simulasi.
  *
  * @param {Date} waktuServerAsli
  * @param {string|number} pinInput
  * @param {Object} konfigurasi
  * @return {Date}
  */
-function gttHitungWaktuUji_(
-  waktuServerAsli,
-  pinInput,
-  konfigurasi
-) {
+function gttHitungWaktuUji_(waktuServerAsli, pinInput, konfigurasi) {
   if (!(waktuServerAsli instanceof Date)) {
-    throw new Error(
-      'Waktu server asli harus berupa Date.'
-    );
+    throw new Error('Waktu server asli harus berupa Date.');
   }
 
-  const waktuAsliMs = waktuServerAsli.getTime();
+  var waktuAsliMs = waktuServerAsli.getTime();
 
   if (!Number.isFinite(waktuAsliMs)) {
     throw new Error('Waktu server asli tidak valid.');
   }
 
-  const config = konfigurasi || {};
-  const pin = String(pinInput || '').trim();
-  const pinUji = String(config.pinUji || '').trim();
-  const tambahMenit = Number(config.tambahMenit || 0);
+  var config = konfigurasi || {};
+  var pin = String(pinInput || '').trim();
+  var pinUji = String(config.pinUji || '').trim();
+  var tambahMenit = Number(config.tambahMenit || 0);
 
-  const bolehDisesuaikan =
+  if (!Number.isFinite(tambahMenit)) {
+    tambahMenit = 0;
+  }
+
+  var bolehDisesuaikan = Boolean(
     config.aktif === true &&
     pin !== '' &&
-    pin === pinUji;
-
-  const menitDiterapkan =
-    bolehDisesuaikan
-      ? tambahMenit
-      : 0;
+    pin === pinUji
+  );
 
   return new Date(
-    waktuAsliMs + menitDiterapkan * 60000
+    waktuAsliMs +
+    (bolehDisesuaikan ? tambahMenit : 0) * 60000
   );
 }
 
-
-/**
- * Menghapus cache setelah parameter diubah saat pengujian.
- */
+/** Menghapus cache setelah MASTER_SETTING diubah. */
 function gttResetCacheModeUjiWaktu_() {
   CacheService
     .getScriptCache()
     .remove(GTT_CACHE_MODE_UJI_WAKTU_);
 }
-
 
 function gttNormalisasiSettingWaktu_(nilai) {
   return String(nilai || '')
@@ -261,82 +217,74 @@ function gttNormalisasiSettingWaktu_(nilai) {
     .toUpperCase();
 }
 
-
 function gttWajibSettingWaktu_(settingMap, nama) {
-  const kunci = gttNormalisasiSettingWaktu_(nama);
+  var kunci = gttNormalisasiSettingWaktu_(nama);
 
-  if (!Object.prototype.hasOwnProperty.call(
-    settingMap,
-    kunci
-  )) {
-    throw new Error(
-      'Parameter "' + nama + '" tidak ditemukan.'
-    );
+  if (!Object.prototype.hasOwnProperty.call(settingMap, kunci)) {
+    throw new Error('Parameter "' + nama + '" tidak ditemukan.');
   }
 
   return String(settingMap[kunci] || '').trim();
 }
 
-
 /**
- * Tes logika yang aman: tidak menulis data ke Sheet.
- * Jalankan dari editor Apps Script setelah pemasangan.
+ * Tes logika murni dan konfigurasi MASTER_SETTING.
+ * Tidak menulis data ke Sheet.
  *
  * @return {Object}
  */
 function ujiModeUjiWaktuGTT() {
-  const dasar = new Date('2026-08-02T00:00:00.000Z');
-  const configAktif = {
+  var dasar = new Date('2026-08-02T00:00:00.000Z');
+  var configAktif = {
     aktif: true,
     pinUji: '3710',
     tambahMenit: 180
   };
 
-  const hasilNonaktif = gttHitungWaktuUji_(
+  var hasilNonaktif = gttHitungWaktuUji_(
     dasar,
     '3710',
-    {
-      aktif: false,
-      pinUji: '3710',
-      tambahMenit: 180
-    }
+    { aktif: false, pinUji: '3710', tambahMenit: 180 }
   );
 
-  const hasilPinLain = gttHitungWaktuUji_(
+  var hasilPinLain = gttHitungWaktuUji_(
     dasar,
     '9999',
     configAktif
   );
 
-  const hasilPinUji = gttHitungWaktuUji_(
+  var hasilPinUji = gttHitungWaktuUji_(
     dasar,
     '3710',
     configAktif
   );
 
-  const hasil = {
+  var konfigurasiAktif = gttAmbilKonfigurasiWaktu_();
+
+  var hasil = {
     modeNonaktifTidakBerubah:
       hasilNonaktif.getTime() === dasar.getTime(),
     pinLainTidakBerubah:
       hasilPinLain.getTime() === dasar.getTime(),
     pinUjiBertambah180Menit:
-      hasilPinUji.getTime() ===
-      dasar.getTime() + 180 * 60000
+      hasilPinUji.getTime() === dasar.getTime() + 180 * 60000,
+    masterSettingTerbaca:
+      typeof konfigurasiAktif.aktif === 'boolean' &&
+      /^\d{4}$/.test(konfigurasiAktif.pinUji) &&
+      Number.isInteger(konfigurasiAktif.tambahMenit)
   };
 
-  const seluruhPass = Object.keys(hasil).every(
-    function (kunci) {
-      return hasil[kunci] === true;
-    }
-  );
+  var seluruhPass = Object.keys(hasil).every(function (kunci) {
+    return hasil[kunci] === true;
+  });
 
-  const output = {
+  var output = {
     success: seluruhPass,
     code: seluruhPass
       ? 'UJI_MODE_WAKTU_PASS'
       : 'UJI_MODE_WAKTU_GAGAL',
     hasil: hasil,
-    konfigurasiAktif: gttAmbilKonfigurasiWaktu_()
+    konfigurasiAktif: konfigurasiAktif
   };
 
   console.log(JSON.stringify(output, null, 2));
