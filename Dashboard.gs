@@ -2,8 +2,8 @@
  * =====================================================
  * GRAND TIME TRACKER — GTT
  * Module : GTT-08 Dashboard Data Engine
- * Version: 1.1.0
- * Status : Development — TERMINOLOGI BREAK & ABSENSI TERBARU
+ * Version: 1.1.1
+ * Status : Stable Candidate — OPERATIONAL DATE FIX
  * =====================================================
  */
 
@@ -28,10 +28,14 @@ function ambilRingkasanDashboard(
     const zonaWaktu =
       spreadsheet.getSpreadsheetTimeZone();
 
-    const sekarang = gttSekarang_(pinWaktuInput);
+    const infoWaktu = gttInfoWaktu_(pinWaktuInput);
+    const sekarang = infoWaktu.sekarang;
+    const waktuServerAsli = infoWaktu.waktuServerAsli;
 
+    // Identitas hari transaksi selalu memakai tanggal server asli.
+    // Mode uji hanya memajukan waktu untuk validasi durasi/jeda.
     const tanggalHariIni = Utilities.formatDate(
-      sekarang,
+      waktuServerAsli,
       zonaWaktu,
       'yyyy-MM-dd'
     );

@@ -1,10 +1,9 @@
 /**
- * =====================================================
- * GRAND TIME TRACKER — GTT
- * Module : API Gateway
- * Version: 2.3.1
- * Sprint : GTT-002 — API Stabilization
- * =====================================================
+ * GRAND TIME TRACKER
+ * File: Api.gs
+ * Build: GTT v0.9.3-dev(2) Rev (3.6.1)
+ * Build Date: 2026-08-03
+ * Module: Activity State, Duplicate Lock, Dashboard Summary & Favicon Test
  */
 
 function apiHealthCheck() {
@@ -49,16 +48,117 @@ function apiLogin(pinInput) {
   });
 }
 
-function apiAbsenMasuk(pinInput) {
+function apiAbsenMasuk(pinInput, lokasiInput) {
   return apiJalankan_('ABSEN_MASUK', function () {
+    var validasiLokasi =
+      apiValidasiLokasiAbsensi_(pinInput, lokasiInput, 'MASUK');
+
+    if (!validasiLokasi.success) {
+      return validasiLokasi;
+    }
+
     return simpanAbsensiMasuk(pinInput);
   });
 }
 
-function apiAbsenPulang(pinInput) {
+function apiAbsenPulang(pinInput, lokasiInput) {
   return apiJalankan_('ABSEN_PULANG', function () {
+    var validasiLokasi =
+      apiValidasiLokasiAbsensi_(pinInput, lokasiInput, 'PULANG');
+
+    if (!validasiLokasi.success) {
+      return validasiLokasi;
+    }
+
     return simpanAbsensiPulang(pinInput);
   });
+}
+
+/**
+ * Rev (3.6.1)
+ * Validasi geofence untuk Absen Masuk dan Absen Pulang.
+ * Titik acuan selalu outlet SA pada MASTER_LOKASI.
+ */
+function apiValidasiLokasiAbsensi_(pinInput, lokasiInput, jenisAksi) {
+  var login = validasiLoginPin(pinInput);
+
+  if (!login || login.success !== true) {
+    return login || {
+      success: false,
+      code: 'LOGIN_TIDAK_VALID',
+      message: 'Sesi login tidak valid.'
+    };
+  }
+
+  var user =
+    apiNormalisasiPengguna_(
+      login.data,
+      pinInput
+    );
+
+  var outlet =
+    String(user.outlet || '').trim();
+
+  if (!outlet) {
+    return {
+      success: false,
+      code: 'OUTLET_TIDAK_DITEMUKAN',
+      message: 'Outlet SA belum terdaftar pada MASTER_SA.'
+    };
+  }
+
+  var hasil =
+    gttValidasiLokasiOutletTugasLuar_(
+      outlet,
+      lokasiInput || {}
+    );
+
+  if (hasil && hasil.success === true) {
+    return hasil;
+  }
+
+  var aksi =
+    String(jenisAksi || '').toUpperCase() === 'PULANG'
+      ? 'Absen Pulang'
+      : 'Absen Masuk';
+
+  var data =
+    hasil && hasil.data
+      ? hasil.data
+      : {};
+
+  if (
+    hasil &&
+    hasil.code === 'DI_LUAR_RADIUS_OUTLET'
+  ) {
+    return {
+      success: false,
+      code: 'ABSEN_DI_LUAR_RADIUS',
+      message:
+        aksi +
+        ' hanya dapat dilakukan di area ' +
+        (data.outlet || outlet) +
+        '. Jarak Anda sekitar ' +
+        (data.jarakMeter || 0) +
+        ' meter, sedangkan radius yang diizinkan ' +
+        (data.radiusMeter || 0) +
+        ' meter.',
+      data: data
+    };
+  }
+
+  return {
+    success: false,
+    code:
+      hasil && hasil.code
+        ? hasil.code
+        : 'LOKASI_TIDAK_VALID',
+    message:
+      hasil && hasil.message
+        ? hasil.message
+        : 'Lokasi perangkat belum dapat divalidasi.',
+    data: data
+  };
 }
 
 function apiMulaiBreak1(pinInput) {
@@ -85,6 +185,19 @@ function apiSelesaiBreak2(pinInput) {
   });
 }
 
+
+function apiMulaiTugasLuar(pinInput, formInput, lokasiInput) {
+  return apiJalankan_('MULAI_TUGAS_LUAR', function () {
+    return gttMulaiTugasLuar_(pinInput, formInput, lokasiInput);
+  });
+}
+
+function apiSelesaiTugasLuar(pinInput, lokasiInput) {
+  return apiJalankan_('SELESAI_TUGAS_LUAR', function () {
+    return gttSelesaiTugasLuar_(pinInput, lokasiInput);
+  });
+}
+
 function apiStatusBreakHariIni(pinInput) {
   return apiJalankan_('STATUS_BREAK_HARI_INI', function () {
     var login = validasiLoginPin(pinInput);
@@ -95,7 +208,18 @@ function apiStatusBreakHariIni(pinInput) {
     var tz = ss.getSpreadsheetTimeZone();
     var infoWaktu = gttInfoWaktu_(user.pin);
     var now = infoWaktu.sekarang;
-    var breakInfo = apiAmbilBreakInfoPribadi_(ss, user.pin, now, tz);
+    var tanggalOperasional = Utilities.formatDate(
+    infoWaktu.waktuServerAsli,
+    tz,
+    'yyyy-MM-dd'
+  );
+  var breakInfo = apiAmbilBreakInfoPribadi_(
+    ss,
+    user.pin,
+    now,
+    tz,
+    tanggalOperasional
+  );
     var settings = apiAmbilSettingBreak_(ss);
     var state = apiBangunStatusBreak_(breakInfo, settings, now, tz);
 
@@ -154,7 +278,18 @@ function apiBangunDataSA_(pinInput, successCode) {
   }
   var infoWaktu = gttInfoWaktu_(user.pin);
   var now = infoWaktu.sekarang;
-  var breakInfo = apiAmbilBreakInfoPribadi_(ss, user.pin, now, tz);
+  var tanggalOperasional = Utilities.formatDate(
+    infoWaktu.waktuServerAsli,
+    tz,
+    'yyyy-MM-dd'
+  );
+  var breakInfo = apiAmbilBreakInfoPribadi_(
+    ss,
+    user.pin,
+    now,
+    tz,
+    tanggalOperasional
+  );
   var settings = apiAmbilSettingBreak_(ss);
   var breakState = apiBangunStatusBreak_(breakInfo, settings, now, tz);
   var attendance = apiBangunKehadiran_(statusSA);
@@ -207,6 +342,9 @@ function apiBangunDataSA_(pinInput, successCode) {
         kapasitasPenuh: capacityFull,
         warningKapasitas: capacityFull ? settings.warningKapasitas : ''
       },
+      tugasLuar:
+        gttAmbilDataTugasLuar_(user),
+
       operasional: {
         statusOperasional: String(statusSA.statusOperasional || breakState.statusOperasional || 'BELUM ABSEN'),
         tombolUtama: button
@@ -224,7 +362,13 @@ function apiBangunDataSA_(pinInput, successCode) {
           teks: 'B1 ' + apiLabelStatusBreak_(breakInfo.break1.status) +
             ' · B2 ' + apiLabelStatusBreak_(breakInfo.break2.status)
         },
-        tugasLuar: { aktif: 0, pulang: 0, tersedia: false },
+        tugasLuar: {
+          aktif: Number(
+            gttHitungTugasLuarAktifOutlet_(user.outlet)
+          ),
+          pulang: 0,
+          tersedia: true
+        },
         pelanggaran: {
           jumlah: Number(breakInfo.pelanggaran.jumlah || 0),
           tersedia: true
@@ -314,8 +458,29 @@ function apiTentukanTombolUtama_(attendance, statusSA, breakState, breakInfo, ca
   var isStartBreak = model[0] === 'MULAI_BREAK_1' || model[0] === 'MULAI_BREAK_2';
   var enabled = breakState.aksiDiizinkan !== false && !(isStartBreak && capacityFull);
   var reason = breakState.alasanTerkunci || '';
-  if (isStartBreak && capacityFull) reason = settings.warningKapasitas;
-  return apiBuatTombol_(model[0], model[1], enabled, reason);
+
+  if (isStartBreak && capacityFull) {
+    reason = apiIsiTemplate_(
+      settings.warningKapasitas,
+      {
+        JUMLAH:
+          String(
+            settings.maxBreakBersamaan
+          ),
+        MAKSIMAL:
+          String(
+            settings.maxBreakBersamaan
+          )
+      }
+    );
+  }
+
+  return apiBuatTombol_(
+    model[0],
+    model[1],
+    enabled,
+    reason
+  );
 }
 
 function apiBuatTombol_(action, label, enabled, reason) {
@@ -455,7 +620,7 @@ function apiBangunStatusSaFallback_(ss, user, tz) {
   return fallback;
 }
 
-function apiAmbilBreakInfoPribadi_(ss, pinInput, now, tz) {
+function apiAmbilBreakInfoPribadi_(ss, pinInput, now, tz, tanggalOperasional) {
   var empty = apiBreakKosong_();
   var sheet = ss.getSheetByName('LOG_ISTIRAHAT');
   if (!sheet || sheet.getLastRow() < 2) return empty;
@@ -467,7 +632,8 @@ function apiAmbilBreakInfoPribadi_(ss, pinInput, now, tz) {
   if (pinIndex < 0 || dateIndex < 0) return empty;
 
   var targetPin = String(pinInput || '').trim();
-  var targetDate = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  var targetDate = String(tanggalOperasional || '').trim() ||
+    Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
   var row = null;
   for (var i = values.length - 1; i >= 1; i--) {
     if (String(values[i][pinIndex] || '').trim() !== targetPin) continue;
@@ -511,8 +677,13 @@ function apiBreakDariBaris_(row, headers, prefix, tz) {
     status: status,
     mulai: apiFormatJamDenganZona_(mulaiRaw, tz),
     selesai: apiFormatJamDenganZona_(selesaiRaw, tz),
-    mulaiRaw: mulaiRaw,
-    selesaiRaw: selesaiRaw,
+
+    // google.script.run tidak boleh menerima objek Date mentah
+    // di dalam payload. Konversi ke string ISO agar bootstrap
+    // dan refresh dashboard tetap berhasil saat Break aktif.
+    mulaiRaw: apiNilaiSerializable_(mulaiRaw),
+    selesaiRaw: apiNilaiSerializable_(selesaiRaw),
+
     durasiMenit: Number(apiCell_(row, headers, prefix + ' DURASI') || 0),
     overtimeMenit: Number(apiCell_(row, headers, prefix + ' OVERTIME') || 0),
     statusTersimpan: storedStatus,
@@ -574,6 +745,31 @@ function apiNormalisasiTeks_(value) {
 
 function apiFormatJam_(value) {
   return apiFormatJamDenganZona_(value, Session.getScriptTimeZone());
+}
+
+/**
+ * Mengubah nilai menjadi tipe yang aman dikirim melalui google.script.run.
+ * Date dikonversi ke ISO string; tipe primitif dipertahankan.
+ *
+ * @param {*} value
+ * @return {*}
+ */
+function apiNilaiSerializable_(value) {
+  if (
+    Object.prototype.toString.call(value) === '[object Date]' &&
+    !isNaN(value.getTime())
+  ) {
+    return value.toISOString();
+  }
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return '';
+  }
+
+  return value;
 }
 
 function apiFormatJamDenganZona_(value, tz) {
@@ -673,4 +869,54 @@ function testApiGs() {
   };
   console.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+
+function gttHitungTugasLuarAktifOutlet_(outlet) {
+  var sheet =
+    gttPastikanSheetTugasLuar_();
+
+  var values =
+    sheet.getDataRange().getValues();
+
+  if (values.length < 2) {
+    return 0;
+  }
+
+  var map =
+    gttHeaderMapAktivitas_(
+      values[0]
+    );
+
+  var uniquePin = {};
+
+  values.slice(1).forEach(function(row) {
+    var rowOutlet =
+      String(
+        row[map['OUTLET']] || ''
+      ).trim();
+
+    var status =
+      String(
+        row[map['STATUS']] || ''
+      ).trim().toUpperCase();
+
+    var pin =
+      String(
+        row[map['PIN']] || ''
+      ).trim();
+
+    if (
+      rowOutlet ===
+        String(outlet || '').trim() &&
+      status === 'AKTIF' &&
+      pin
+    ) {
+      uniquePin[pin] = true;
+    }
+  });
+
+  return Object.keys(
+    uniquePin
+  ).length;
 }

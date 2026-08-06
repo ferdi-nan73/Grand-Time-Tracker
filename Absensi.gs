@@ -2,8 +2,8 @@
  * =====================================================
  * GRAND TIME TRACKER — GTT
  * Module : GTT-05 Attendance Engine
- * Version: 1.3.0
- * Status : Reviewed Candidate — ABSENSI CORE
+ * Version: 1.3.2
+ * Status : Stable — OPERATIONAL DATE FIX
  * =====================================================
  */
 
@@ -46,7 +46,8 @@ function simpanAbsensiMasuk(pinInput) {
     }
 
     const zonaWaktu = spreadsheet.getSpreadsheetTimeZone();
-    const sekarang = gttSekarang_(pengguna.pin);
+    const infoWaktu = gttInfoWaktu_(pengguna.pin);
+    const sekarang = infoWaktu.waktuServerAsli;
 
     const tanggalHariIni = Utilities.formatDate(
       sekarang,
@@ -216,7 +217,8 @@ function simpanAbsensiPulang(pinInput) {
     }
 
     const zonaWaktu = spreadsheet.getSpreadsheetTimeZone();
-    const sekarang = gttSekarang_(pengguna.pin);
+    const infoWaktu = gttInfoWaktu_(pengguna.pin);
+    const sekarang = infoWaktu.waktuServerAsli;
     const tanggalHariIni = Utilities.formatDate(
       sekarang,
       zonaWaktu,

@@ -1,4 +1,19 @@
+<!--
+  GRAND TIME TRACKER
+  File: Scripts.html
+  Build: GTT v0.9.4.3-dev.1.1
+  Build Date: 2026-08-03
+  Module: Single Active Task, Active Panel, Home Badge & Return Geofence
+-->
 <script>
+  const GTT_APP_VERSION = 'GTT v0.9.4.3-dev.1.1';
+
+  const GTT_BUILD_INFO = Object.freeze({
+    version: 'GTT v0.9.4.3-dev.1.1',
+    buildDate: '2026-08-05',
+    module: 'Branding, Status, GPS Recovery & Voice Assistant'
+  });
+
   // GTT-01B — Baseline frontend bersih. Urutan: script utama → UI v2.1.
 
 // GTT Frontend Module 7 — API v2 Integration + Break Transaction
@@ -19,7 +34,21 @@
     serverClockOffsetMs: 0,
     serverTimeZone: '',
     activeActionCode: '',
-    actionButtonOriginalLabel: ''
+    actionButtonOriginalLabel: '',
+    isManualSync: false,
+    breakTimerIntervalId: null,
+    breakTimerKey: '',
+    breakAlarmFlags: {},
+    breakAudioContext: null,
+    outsideDutyTimerId: null,
+    outsideDutyHomeTimerId: null,
+    outsideDutyState: null,
+    gpsRecoveryRunning: false,
+    gpsRecoveryBest: null,
+    gpsRecoveryAttempts: 0,
+    voiceEnabled: true,
+    voiceLanguage: 'id-ID',
+    attendanceReminderSpokenKey: ''
   };
 
   const SA_REFRESH_INTERVAL_MS = 10000;
@@ -34,6 +63,7 @@
 
   function initializeApp() {
     initializeGttDialog();
+    loadVoicePreferences_();
     bindEvents();
     updateInternetStatus();
     requestLocation();
@@ -61,6 +91,58 @@
         'click',
         togglePinVisibility
       );
+    }
+
+    const profilePinToggle =
+      document.getElementById('profilePinToggle');
+
+    if (profilePinToggle) {
+      profilePinToggle.addEventListener(
+        'click',
+        toggleProfilePinVisibility
+      );
+    }
+
+    const profileSyncButton =
+      document.getElementById('profileSyncButton');
+
+    if (profileSyncButton) {
+      profileSyncButton.addEventListener(
+        'click',
+        runProfileManualSync
+      );
+    }
+
+    const gpsRefreshButton = document.getElementById('gpsRefreshButton');
+    if (gpsRefreshButton) {
+      gpsRefreshButton.addEventListener('click', () => refreshGpsWithRetries_(5));
+    }
+
+    const voiceEnabledToggle = document.getElementById('voiceEnabledToggle');
+    if (voiceEnabledToggle) {
+      voiceEnabledToggle.checked = state.voiceEnabled;
+      voiceEnabledToggle.addEventListener('change', event => {
+        state.voiceEnabled = Boolean(event.target.checked);
+        saveVoicePreferences_();
+      });
+    }
+
+    const voiceLanguageSelect = document.getElementById('voiceLanguageSelect');
+    if (voiceLanguageSelect) {
+      voiceLanguageSelect.value = state.voiceLanguage;
+      voiceLanguageSelect.addEventListener('change', event => {
+        state.voiceLanguage = event.target.value === 'en-US' ? 'en-US' : 'id-ID';
+        saveVoicePreferences_();
+      });
+    }
+
+    const voiceTestButton = document.getElementById('voiceTestButton');
+    if (voiceTestButton) {
+      voiceTestButton.addEventListener('click', () => {
+        speakGtt_(state.voiceLanguage === 'en-US'
+          ? 'Grand Time Tracker voice assistant is active.'
+          : 'Voice Assistant Grand Time Tracker aktif.');
+      });
     }
 
     document
@@ -389,13 +471,23 @@
     state.isRefreshProcessing = false;
   }
 
-  function runSaStatusRefresh() {
+  function runSaStatusRefresh(options) {
+    const config = options || {};
+    const manual = config.manual === true;
+
     if (
       !isSaSessionActive() ||
       state.isRefreshProcessing ||
       !navigator.onLine ||
-      document.hidden
+      (!manual && document.hidden)
     ) {
+      if (manual && !navigator.onLine) {
+        setProfileSyncState_(
+          'error',
+          'Gagal Sinkron',
+          'Periksa koneksi internet lalu coba lagi.'
+        );
+      }
       return;
     }
 
@@ -404,10 +496,26 @@
       !google.script ||
       !google.script.run
     ) {
+      if (manual) {
+        setProfileSyncState_(
+          'error',
+          'Gagal Sinkron',
+          'Layanan server tidak tersedia.'
+        );
+      }
       return;
     }
 
     state.isRefreshProcessing = true;
+    state.isManualSync = manual;
+
+    if (manual) {
+      setProfileSyncState_(
+        'loading',
+        'Menyinkronkan...',
+        'Mengambil data terbaru dari server.'
+      );
+    }
 
     google.script.run
       .withSuccessHandler(handleSaRefreshSuccess)
@@ -429,7 +537,9 @@
   }
 
   function handleSaRefreshSuccess(result) {
+    const wasManual = state.isManualSync;
     state.isRefreshProcessing = false;
+    state.isManualSync = false;
     state.lastRefreshAt = Date.now();
 
     result = normalizeGttServerResult(result);
@@ -437,6 +547,16 @@
     if (!result || result.success !== true || !result.data) {
       state.refreshFailureCount += 1;
       console.warn('Refresh SA ditolak:', result);
+
+      if (wasManual) {
+        setProfileSyncState_(
+          'error',
+          'Gagal Sinkron',
+          result && result.message
+            ? result.message
+            : 'Data terbaru gagal dimuat.'
+        );
+      }
       return;
     }
 
@@ -458,13 +578,31 @@
     }
 
     refreshSaDashboardView();
+
+    setProfileSyncState_(
+      'success',
+      'Sinkron',
+      'Data terbaru berhasil diambil dari server.'
+    );
   }
 
   function handleSaRefreshFailure(error) {
+    const wasManual = state.isManualSync;
     state.isRefreshProcessing = false;
+    state.isManualSync = false;
     state.refreshFailureCount += 1;
 
     console.error('Refresh status SA gagal:', error);
+
+    if (wasManual) {
+      setProfileSyncState_(
+        'error',
+        'Gagal Sinkron',
+        error && error.message
+          ? error.message
+          : 'Periksa koneksi internet lalu coba lagi.'
+      );
+    }
 
     // Refresh bersifat nonblokir. Login tetap dipertahankan agar gangguan
     // jaringan sesaat tidak memaksa pengguna login ulang.
@@ -588,10 +726,33 @@
     );
 
     setText('profileName', user.name || '-');
+    setText('historyEmployeeName', user.name || '-');
+    setText('outsideDutyEmployeeName', user.name || '-');
     setText('profileSaId', user.saId || '-');
-    setText('profilePosition', user.position || '-');
+    setText('profilePosition', user.position || user.jabatan || '-');
     setText('profileOutlet', user.outlet || '-');
+    setText('profileRole', user.role || 'SA');
     setText('profileAccountStatus', user.status || 'AKTIF');
+    setText('profileAppVersion', GTT_APP_VERSION);
+    setText(
+      'profileSummary',
+      buildProfileText(
+        user.position || user.jabatan,
+        user.outlet
+      )
+    );
+    setText(
+      'profileAvatar',
+      buildProfileInitials_(user.name)
+    );
+
+    resetProfilePinVisibility_();
+
+    setProfileSyncState_(
+      'success',
+      'Sinkron',
+      'Data awal berhasil dimuat dari server.'
+    );
 
     renderSaDashboard(state.bootstrapData || {});
     openSaTab('home');
@@ -626,9 +787,524 @@
       operational
     );
     bindBreakOverview(breakData, operational);
-    bindMainActionPreview(operational, breakData);
+    bindMainActionPreview(
+      operational,
+      breakData,
+      dashboard.ringkasanOutlet || {}
+    );
+    bindProfileWorkToday_(attendance, breakData, operational);
+    updateAttendanceReminder_(attendance);
+    configureActiveBreakTimer_(breakData, payload);
+    bindOutsideDuty_(payload);
+    updateProfileLastSync_();
   }
 
+
+  function configureActiveBreakTimer_(breakData, payload) {
+    stopActiveBreakTimer_();
+    const source=breakData||{};
+    const b1=source.break1||{};
+    const b2=source.break2||{};
+    let n=0, session=null;
+
+    if(String(b1.status||'').toUpperCase()==='SEDANG BREAK'){n=1;session=b1;}
+    else if(String(b2.status||'').toUpperCase()==='SEDANG BREAK'){n=2;session=b2;}
+
+    if(!session){renderBreakTimerIdle_();return;}
+
+    const duration=resolveBreakDurationMinutes_(n,source,payload);
+    const reminder=resolveBreakReminderMinutes_(source,payload);
+    const tolerance=resolveBreakToleranceMinutes_(source,payload);
+    const key=[state.pin,n,session.mulaiRaw||session.mulai||''].join('|');
+
+    if(state.breakTimerKey!==key){
+      state.breakTimerKey=key;
+      state.breakAlarmFlags={};
+    }
+
+    const tick=()=>renderActiveBreakTimerTick_({
+      sessionNumber:n,session,durationMinutes:duration,
+      reminderMinutes:reminder,toleranceMinutes:tolerance
+    });
+    tick();
+    state.breakTimerIntervalId=window.setInterval(tick,1000);
+  }
+
+  function stopActiveBreakTimer_(){
+    if(state.breakTimerIntervalId) window.clearInterval(state.breakTimerIntervalId);
+    state.breakTimerIntervalId=null;
+  }
+
+  function renderBreakTimerIdle_(){
+    const p=document.getElementById('activeBreakTimerPanel');
+    if(!p)return;
+    p.className='active-break-timer break-timer-idle';
+    setText('activeBreakTimerSession','BREAK');
+    setText('activeBreakTimerState','TIDAK AKTIF');
+    setText('activeBreakElapsed','00:00:00');
+    setText('activeBreakRemainingLabel','Sisa waktu');
+    setText('activeBreakRemaining','--:--:--');
+    setBreakProgress_(0);
+  }
+
+  function showBreakTimerPending_(n){
+    const p=document.getElementById('activeBreakTimerPanel');
+    if(!p)return;
+    p.className='active-break-timer break-timer-pending';
+    setText('activeBreakTimerSession',`BREAK ${n}`);
+    setText('activeBreakTimerState','MENYIMPAN...');
+    setText('activeBreakElapsed','00:00:00');
+    setText('activeBreakRemainingLabel','Menunggu server');
+    setText('activeBreakRemaining','--:--:--');
+    setBreakProgress_(0);
+  }
+
+  function renderActiveBreakTimerTick_(c){
+    const p=document.getElementById('activeBreakTimerPanel');
+    if(!p)return;
+    const elapsed=resolveBreakElapsedSeconds_(c.session);
+    const limit=Math.max(1,toSafeNumber(c.durationMinutes)*60);
+    const remain=limit-elapsed;
+    const over=Math.max(0,elapsed-limit);
+    const reminder=Math.max(0,toSafeNumber(c.reminderMinutes)*60);
+    const tolerance=Math.max(0,toSafeNumber(c.toleranceMinutes)*60);
+
+    setText('activeBreakTimerSession',`BREAK ${c.sessionNumber}`);
+    setText('activeBreakElapsed',formatTimerHms_(elapsed));
+    setBreakProgress_(Math.min(100,elapsed/limit*100));
+
+    if(remain>0){
+      const warn=reminder>0&&remain<=reminder;
+      p.className=warn?'active-break-timer break-timer-warning':'active-break-timer break-timer-normal';
+      setText('activeBreakTimerState',warn?'HAMPIR SELESAI':'SEDANG BERLANGSUNG');
+      setText('activeBreakRemainingLabel','Sisa waktu');
+      setText('activeBreakRemaining',formatTimerHms_(remain));
+      if(warn) triggerBreakAlarmOnce_('reminder',
+        `Break ${c.sessionNumber} akan berakhir dalam ${Math.max(1,Math.ceil(remain/60))} menit.`,'warning');
+      return;
+    }
+
+    p.className='active-break-timer break-timer-over';
+    setText('activeBreakTimerState','OVERBREAK');
+    setText('activeBreakRemainingLabel','Overbreak');
+    setText('activeBreakRemaining',formatTimerHms_(over));
+    triggerBreakAlarmOnce_('timeup',
+      `Waktu Break ${c.sessionNumber} sudah habis. Segera selesaikan break dan kembali bekerja.`,'error');
+    if(tolerance>0&&over>=tolerance){
+      triggerBreakAlarmOnce_('tolerance',
+        `Anda sudah overbreak ${Math.ceil(over/60)} menit. Segera selesaikan break.`,'error');
+    }
+  }
+
+  function resolveBreakElapsedSeconds_(s){
+    const raw=s&&s.mulaiRaw?Date.parse(s.mulaiRaw):NaN;
+    if(!Number.isNaN(raw)){
+      return Math.max(0,Math.floor((Date.now()+state.serverClockOffsetMs-raw)/1000));
+    }
+    const fallback=hitungDurasiBerjalanBreakDetik_(normalizeClockValue(s&&s.mulai));
+    return fallback===null?0:fallback;
+  }
+
+  function resolveBreakDurationMinutes_(n,b,p){
+    return firstPositiveNumber_(n===1?[
+      b.durasiBreak1,b.durasiBreak1Menit,p.durasiBreak1,
+      p.pengaturan&&p.pengaturan.durasiBreak1,60
+    ]:[
+      b.durasiBreak2,b.durasiBreak2Menit,p.durasiBreak2,
+      p.pengaturan&&p.pengaturan.durasiBreak2,30
+    ],n===1?60:30);
+  }
+
+  function resolveBreakReminderMinutes_(b,p){
+    return firstPositiveNumber_([
+      b.reminderBreakMenit,p.reminderBreakMenit,
+      p.pengaturan&&p.pengaturan.reminderBreakMenit,3
+    ],3);
+  }
+
+  function resolveBreakToleranceMinutes_(b,p){
+    return firstPositiveNumber_([
+      b.toleransiOverbreakMenit,p.toleransiOverbreakMenit,
+      p.pengaturan&&p.pengaturan.toleransiOverbreakMenit,5
+    ],5);
+  }
+
+  function firstPositiveNumber_(values,fallback){
+    for(const v of values||[]){
+      const n=Number(v);
+      if(Number.isFinite(n)&&n>0)return n;
+    }
+    return fallback;
+  }
+
+  function formatTimerHms_(total){
+    const s=Math.max(0,Math.floor(Number(total)||0));
+    return [Math.floor(s/3600),Math.floor((s%3600)/60),s%60]
+      .map(v=>String(v).padStart(2,'0')).join(':');
+  }
+
+  function setBreakProgress_(pct){
+    const bar=document.getElementById('activeBreakProgressBar');
+    if(bar)bar.style.width=`${Math.max(0,Math.min(100,pct))}%`;
+  }
+
+  function primeBreakAudio_(){
+    try{
+      if(!state.breakAudioContext){
+        const C=window.AudioContext||window.webkitAudioContext;
+        if(C)state.breakAudioContext=new C();
+      }
+      if(state.breakAudioContext&&state.breakAudioContext.state==='suspended'){
+        state.breakAudioContext.resume();
+      }
+    }catch(e){console.warn('Audio alarm tidak tersedia:',e);}
+  }
+
+  function playBreakAlarm_(level){
+    try{
+      primeBreakAudio_();
+      const c=state.breakAudioContext;
+      if(!c)return;
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine';
+      o.frequency.value=level==='error'?880:660;
+      g.gain.value=.0001;
+      o.connect(g);g.connect(c.destination);
+      const now=c.currentTime;
+      g.gain.exponentialRampToValueAtTime(.18,now+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,now+.45);
+      o.start(now);o.stop(now+.5);
+      if(navigator.vibrate)navigator.vibrate(level==='error'?[250,120,250]:[180]);
+    }catch(e){console.warn('Alarm break gagal diputar:',e);}
+  }
+
+  function triggerBreakAlarmOnce_(key,message,level){
+    if(state.breakAlarmFlags[key])return;
+    state.breakAlarmFlags[key]=true;
+    playBreakAlarm_(level);
+    showGttDialog({
+      title:level==='error'?'Peringatan Overbreak':'Break Hampir Selesai',
+      message,type:level==='error'?'error':'warning',buttonText:'MENGERTI'
+    });
+  }
+
+
+  function runProfileManualSync() {
+    runSaStatusRefresh({ manual: true });
+  }
+
+  function formatProfileTimeRange_(start, end) {
+    const startText = normalizeClockValue(start);
+    const endText = normalizeClockValue(end);
+
+    if (startText === '--:--') {
+      return 'Belum diambil';
+    }
+
+    if (endText === '--:--') {
+      return `${startText} – Sedang berlangsung`;
+    }
+
+    return `${startText} – ${endText}`;
+  }
+
+  function formatProfileDuration_(value) {
+    const minutes = toSafeNumber(value);
+
+    if (minutes <= 0) {
+      return 'Durasi —';
+    }
+
+    return `Durasi ${minutes} menit`;
+  }
+
+  function bindProfileWorkToday_(attendance, breakData, operational) {
+    const attendanceInfo = attendance || {};
+    const breakInfo = breakData || {};
+    const b1 = breakInfo.break1 || {};
+    const b2 = breakInfo.break2 || {};
+    const operationalStatus = normalizeDisplayValue(
+      operational && operational.statusOperasional,
+      'BELUM ABSEN'
+    );
+
+    const checkIn = normalizeClockValue(attendanceInfo.jamMasuk);
+    const checkOut = normalizeClockValue(attendanceInfo.jamPulang);
+
+    setText(
+      'profileWorkCheckIn',
+      checkIn === '--:--' ? 'Belum absen' : checkIn
+    );
+
+    setText(
+      'profileWorkCheckOut',
+      checkOut === '--:--' ? 'Belum pulang' : checkOut
+    );
+
+    setText(
+      'profileWorkBreak1',
+      formatProfileTimeRange_(b1.mulai, b1.selesai)
+    );
+    setText(
+      'profileWorkBreak1Duration',
+      formatProfileDuration_(b1.durasiMenit)
+    );
+
+    setText(
+      'profileWorkBreak2',
+      formatProfileTimeRange_(b2.mulai, b2.selesai)
+    );
+    setText(
+      'profileWorkBreak2Duration',
+      formatProfileDuration_(b2.durasiMenit)
+    );
+
+    setText(
+      'historyOperationalStatus',
+      formatHistoryOperationalStatus_(operationalStatus)
+    );
+
+    updateHistoryOperationalStyle_(operationalStatus);
+
+    const attendanceStatus =
+      normalizeDisplayValue(
+        attendanceInfo.statusKehadiran ||
+        attendanceInfo.statusJamMasuk,
+        'BELUM ABSEN'
+      );
+
+    setText(
+      'historyAttendanceStatus',
+      formatHistoryAttendanceStatus_(attendanceStatus)
+    );
+
+    updateHistoryAttendanceStyle_(attendanceStatus);
+  }
+
+  function formatHistoryOperationalStatus_(status) {
+    const normalized =
+      normalizeDisplayValue(status, 'BELUM ABSEN');
+
+    if (
+      normalized.indexOf('BREAK 1') >= 0 ||
+      normalized.indexOf('ISTIRAHAT 1') >= 0
+    ) {
+      return 'Sedang Break 1';
+    }
+
+    if (
+      normalized.indexOf('BREAK 2') >= 0 ||
+      normalized.indexOf('ISTIRAHAT 2') >= 0
+    ) {
+      return 'Sedang Break 2';
+    }
+
+    if (
+      normalized.indexOf('PULANG') >= 0 ||
+      normalized.indexOf('SELESAI') >= 0
+    ) {
+      return 'Sudah Pulang';
+    }
+
+    if (
+      normalized.indexOf('AKTIF') >= 0 ||
+      normalized.indexOf('BEKERJA') >= 0
+    ) {
+      return 'Aktif Bekerja';
+    }
+
+    return 'Belum Absen';
+  }
+
+  function updateHistoryOperationalStyle_(status) {
+    const card =
+      document.getElementById('historyOperationalStatusCard');
+
+    if (!card) {
+      return;
+    }
+
+    card.classList.remove(
+      'operational-neutral',
+      'operational-working',
+      'operational-break1',
+      'operational-break2',
+      'operational-finished'
+    );
+
+    const normalized =
+      normalizeDisplayValue(status, 'BELUM ABSEN');
+
+    if (
+      normalized.indexOf('BREAK 1') >= 0 ||
+      normalized.indexOf('ISTIRAHAT 1') >= 0
+    ) {
+      card.classList.add('operational-break1');
+      return;
+    }
+
+    if (
+      normalized.indexOf('BREAK 2') >= 0 ||
+      normalized.indexOf('ISTIRAHAT 2') >= 0
+    ) {
+      card.classList.add('operational-break2');
+      return;
+    }
+
+    if (
+      normalized.indexOf('PULANG') >= 0 ||
+      normalized.indexOf('SELESAI') >= 0
+    ) {
+      card.classList.add('operational-finished');
+      return;
+    }
+
+    if (
+      normalized.indexOf('AKTIF') >= 0 ||
+      normalized.indexOf('BEKERJA') >= 0
+    ) {
+      card.classList.add('operational-working');
+      return;
+    }
+
+    card.classList.add('operational-neutral');
+  }
+
+  function formatHistoryAttendanceStatus_(status) {
+    const normalized =
+      normalizeDisplayValue(status, 'BELUM ABSEN');
+
+    if (normalized.indexOf('ALPA') >= 0) {
+      return 'Alpa';
+    }
+
+    if (
+      normalized.indexOf('1/2') >= 0 ||
+      normalized.indexOf('SETENGAH') >= 0
+    ) {
+      return 'Hadir 1/2 Hari';
+    }
+
+    if (
+      normalized.indexOf('HADIR') >= 0 ||
+      normalized.indexOf('PENUH') >= 0
+    ) {
+      return 'Hadir Penuh';
+    }
+
+    return 'Belum Absen';
+  }
+
+  function updateHistoryAttendanceStyle_(status) {
+    const card =
+      document.getElementById('historyAttendanceStatusCard');
+
+    if (!card) {
+      return;
+    }
+
+    card.classList.remove(
+      'status-present',
+      'status-half',
+      'status-absent',
+      'status-neutral'
+    );
+
+    const normalized =
+      normalizeDisplayValue(status, 'BELUM ABSEN');
+
+    if (normalized.indexOf('ALPA') >= 0) {
+      card.classList.add('status-absent');
+      return;
+    }
+
+    if (
+      normalized.indexOf('1/2') >= 0 ||
+      normalized.indexOf('SETENGAH') >= 0
+    ) {
+      card.classList.add('status-half');
+      return;
+    }
+
+    if (
+      normalized.indexOf('HADIR') >= 0 ||
+      normalized.indexOf('PENUH') >= 0
+    ) {
+      card.classList.add('status-present');
+      return;
+    }
+
+    card.classList.add('status-neutral');
+  }
+
+  function formatProfileSyncTime_(timestamp) {
+    if (!timestamp) {
+      return '—';
+    }
+
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+      return '—';
+    }
+
+    return date.toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
+
+  function updateProfileLastSync_() {
+    setText(
+      'profileLastSync',
+      formatProfileSyncTime_(state.lastRefreshAt)
+    );
+  }
+
+  function setProfileSyncState_(type, label, message) {
+    const badge =
+      document.getElementById('profileSyncBadge');
+    const button =
+      document.getElementById('profileSyncButton');
+
+    setText('profileSyncBadge', label);
+    setText('profileSyncMessage', message);
+    setText('systemServerValue', type === 'error' ? 'Gangguan' : type === 'loading' ? 'Menghubungkan...' : 'Online');
+    setText('systemDatabaseValue', type === 'success' ? 'Data terbaru' : type === 'error' ? 'Gagal memuat' : 'Terhubung');
+    updateProfileLastSync_();
+
+    if (badge) {
+      badge.classList.remove(
+        'sync-idle',
+        'sync-loading',
+        'sync-success',
+        'sync-error'
+      );
+      badge.classList.add(`sync-${type}`);
+    }
+
+    if (button) {
+      const loading = type === 'loading';
+      button.disabled = loading;
+      button.textContent = loading
+        ? 'Menyinkronkan...'
+        : type === 'success'
+          ? 'Data Terbaru'
+          : 'Sinkronkan Sekarang';
+
+      if (type === 'success') {
+        window.setTimeout(() => {
+          if (!state.isRefreshProcessing) {
+            button.textContent = 'Sinkronkan Sekarang';
+          }
+        }, 1800);
+      }
+    }
+  }
 
   function bindAttendanceDashboard(attendance, operational) {
     const attendanceStatus =
@@ -652,13 +1328,13 @@
       'attendanceStatusBadge',
       buildAttendanceBadge(
         attendanceStatus,
-        operationalStatus
+        ''
       )
     );
 
     setAttendanceBadgeClass(
       attendanceStatus,
-      operationalStatus
+      ''
     );
 
     setText(
@@ -694,16 +1370,23 @@
     );
 
     setText(
-      'homeActivitySummary',
-      breakInfo.teks ||
-        `B1 ${formatStatusLabel(breakInfo.break1 || 'BELUM DIAMBIL')} · ` +
-        `B2 ${formatStatusLabel(breakInfo.break2 || 'BELUM DIAMBIL')}`
+      'homeBreak1Active',
+      toSafeNumber(outletSummary.break1) + ' SA'
+    );
+
+    setText(
+      'homeBreak2Active',
+      toSafeNumber(outletSummary.break2) + ' SA'
     );
 
     setText(
       'homeOutsideSummary',
       outside.tersedia
-        ? `Aktif ${toSafeNumber(outside.aktif)} · Pulang ${toSafeNumber(outside.pulang)}`
+        ? (
+            toSafeNumber(outside.aktif) > 0
+              ? `${toSafeNumber(outside.aktif)} SA sedang keluar`
+              : 'Tidak ada SA keluar'
+          )
         : 'Belum tersedia'
     );
 
@@ -785,22 +1468,96 @@
 
     setText('breakQuota', `${completed}/2`);
   }
-  function bindMainActionPreview(operational, breakData) {
+  function bindMainActionPreview(
+    operational,
+    breakData,
+    outletSummary
+  ) {
+    initializeGtt09LockedButtonStyle_();
+
     const action = resolveSaAction(operational);
     const button = document.getElementById('saMainActionButton');
 
     if (button) {
-      button.textContent = action.label;
+      const currentBreakData =
+        breakData ||
+        (state.bootstrapData && state.bootstrapData.break) ||
+        {};
+
+      const currentOutletSummary =
+        outletSummary ||
+        (
+          state.bootstrapData &&
+          state.bootstrapData.dashboard &&
+          state.bootstrapData.dashboard.ringkasanOutlet
+        ) ||
+        {};
+
+      const capacityFull =
+        Boolean(currentBreakData.kapasitasPenuh);
+
+      const isStartBreak =
+        action.code === 'MULAI_BREAK_1' ||
+        action.code === 'MULAI_BREAK_2';
+
+      const lockedBreak2 =
+        action.code === 'MULAI_BREAK_2' &&
+        action.enabled === false &&
+        Boolean(action.reason) &&
+        !capacityFull;
+
+      const lockedCapacity =
+        isStartBreak &&
+        action.enabled === false &&
+        capacityFull;
+
+      const clickableLocked =
+        lockedBreak2 || lockedCapacity;
+
+      button.textContent =
+        buildMainActionLabel_(
+          action.code,
+          action.label
+        );
+
+      // Tombol terkunci karena jeda Break 2 atau kuota penuh
+      // tetap dapat diklik untuk menampilkan penjelasan.
       button.disabled =
-        !action.enabled || state.isActionProcessing;
+        state.isActionProcessing ||
+        (!action.enabled && !clickableLocked);
+
       button.dataset.actionCode = action.code;
       button.dataset.actionTarget = '';
       button.dataset.operationalStatus = action.status;
+      button.dataset.actionLocked =
+        clickableLocked ? 'true' : 'false';
+      button.dataset.lockedType =
+        lockedCapacity
+          ? 'CAPACITY'
+          : lockedBreak2
+            ? 'BREAK2_WAIT'
+            : '';
+      button.dataset.lockedReason =
+        clickableLocked ? action.reason : '';
+      button.dataset.breakCurrent =
+        String(
+          toSafeNumber(
+            currentOutletSummary.sedangBreak
+          )
+        );
+      button.dataset.breakMaximum =
+        String(
+          toSafeNumber(
+            currentOutletSummary.maksimalBreak ||
+            currentBreakData.maksimalBreak
+          )
+        );
       button.setAttribute(
         'aria-label',
         action.ariaLabel || action.label
       );
-      button.title = action.reason || '';
+      button.title = '';
+      applyLockedActionVisual_(button);
     }
 
     bindBreakActionState(
@@ -808,6 +1565,29 @@
       breakData || (state.bootstrapData && state.bootstrapData.break) || {}
     );
   }
+  /**
+   * Memberi class visual pada tombol utama yang terkunci tetapi
+   * tetap dapat diklik untuk melihat notifikasi GTT-09.
+   */
+  function applyLockedActionVisual_(button) {
+    if (!button) {
+      return;
+    }
+
+    const locked =
+      button.dataset.actionLocked === 'true';
+
+    button.classList.toggle(
+      'gtt-action-locked',
+      locked
+    );
+
+    button.setAttribute(
+      'aria-disabled',
+      locked ? 'true' : 'false'
+    );
+  }
+
   function resolveSaAction(operational) {
     const source = operational || {};
     const status = normalizeOperationalStatus(
@@ -936,6 +1716,79 @@
 
     return 'MENUNGGU';
   }
+  function buildMainActionLabel_(actionCode, label) {
+    const normalizedCode =
+      String(actionCode || '').toUpperCase();
+
+    const normalizedLabel =
+      String(label || 'AKSI TIDAK TERSEDIA');
+
+    const iconMap = {
+      ABSEN_MASUK: '✓',
+      MULAI_BREAK_1: '☕',
+      SELESAI_BREAK_1: '⏱',
+      MULAI_BREAK_2: '☕',
+      SELESAI_BREAK_2: '⏱',
+      ABSEN_PULANG: '↪',
+      PULANG: '↪'
+    };
+
+    const icon =
+      iconMap[normalizedCode] || '•';
+
+    return `${icon}  ${normalizedLabel}`;
+  }
+
+
+  function formatBreakCapacityMessage_(
+    template,
+    maximum,
+    current
+  ) {
+    const safeMaximum =
+      Math.max(
+        0,
+        toSafeNumber(maximum)
+      );
+
+    const safeCurrent =
+      Math.max(
+        0,
+        toSafeNumber(current)
+      );
+
+    let message =
+      String(template || '');
+
+    message = message
+      .replace(
+        /\{\{JUMLAH\}\}/g,
+        String(safeMaximum)
+      )
+      .replace(
+        /\{\{MAKSIMAL\}\}/g,
+        String(safeMaximum)
+      )
+      .replace(
+        /\{\{SEDANG\}\}/g,
+        String(safeCurrent)
+      );
+
+    if (
+      safeMaximum > 0 &&
+      message.indexOf(
+        `${safeCurrent} dari ${safeMaximum}`
+      ) === -1
+    ) {
+      message +=
+        `\n\nSaat ini ${safeCurrent} dari ` +
+        `${safeMaximum} SA sedang break.`;
+    }
+
+    return message.trim();
+  }
+
+
   function handleSaMainActionClick() {
     if (state.isActionProcessing) {
       return;
@@ -948,6 +1801,51 @@
     }
 
     const actionCode = button.dataset.actionCode || '';
+
+    if (
+      button.dataset.actionLocked === 'true'
+    ) {
+      const lockedType =
+        button.dataset.lockedType || '';
+
+      if (lockedType === 'CAPACITY') {
+        const current =
+          toSafeNumber(
+            button.dataset.breakCurrent
+          );
+
+        const maximum =
+          toSafeNumber(
+            button.dataset.breakMaximum
+          );
+
+        const template =
+          button.dataset.lockedReason ||
+          'MAKSIMAL {{JUMLAH}} SA DAPAT BREAK BERSAMAAN. ' +
+          'SILAKAN TUNGGU SA LAIN SELESAI BREAK.';
+
+        showGttDialog({
+          title: 'Kuota Break Penuh',
+          message:
+            formatBreakCapacityMessage_(
+              template,
+              maximum,
+              current
+            ),
+          type: 'warning',
+          buttonText: 'MENGERTI'
+        });
+
+        return;
+      }
+
+      showSaActionFeedback(
+        button.dataset.lockedReason ||
+          'Break 2 belum tersedia.',
+        'warning'
+      );
+      return;
+    }
 
     if (actionCode === 'REFRESH') {
       runSaStatusRefresh();
@@ -986,25 +1884,70 @@
     actionCode,
     sourceButton
   ) {
+    const mulaiBreak = [
+      'MULAI_BREAK_1',
+      'MULAI_BREAK_2'
+    ].includes(actionCode);
+
     const selesaiBreak = [
       'SELESAI_BREAK_1',
       'SELESAI_BREAK_2'
     ].includes(actionCode);
 
-    if (!selesaiBreak) {
-      runSaTransaction(actionCode, sourceButton);
+    if (mulaiBreak) {
+      const sessionNumber =
+        actionCode === 'MULAI_BREAK_2' ? 2 : 1;
+      showMulaiBreakConfirmation_(sessionNumber, actionCode, sourceButton);
       return;
     }
 
-    const sessionNumber =
-      actionCode === 'SELESAI_BREAK_2' ? 2 : 1;
+    if (selesaiBreak) {
+      const sessionNumber =
+        actionCode === 'SELESAI_BREAK_2' ? 2 : 1;
+      showSelesaiBreakConfirmation_(sessionNumber, actionCode, sourceButton);
+      return;
+    }
 
-    showSelesaiBreakConfirmation_(
-      sessionNumber,
-      actionCode,
-      sourceButton
-    );
+    runSaTransaction(actionCode, sourceButton);
   }
+
+  function showMulaiBreakConfirmation_(sessionNumber, actionCode, sourceButton) {
+    showGttDialog({
+      title: `Konfirmasi Mulai Break ${sessionNumber}`,
+      message: `Apakah Anda akan mengambil Break ${sessionNumber} sekarang?\n\nTimer dimulai setelah transaksi berhasil disimpan oleh server.`,
+      type: 'warning',
+      buttonText: `YA, MULAI BREAK ${sessionNumber}`
+    });
+
+    const actions = document.querySelector('#gttDialog .gtt-dialog-actions');
+    const confirmButton = document.getElementById('gttDialogButton');
+    if (!actions || !confirmButton) return;
+
+    const cancelButton = document.createElement('button');
+    cancelButton.id='gttDialogCancelButton';
+    cancelButton.type='button';
+    cancelButton.textContent='TIDAK';
+    cancelButton.className='gtt-dialog-button';
+    cancelButton.style.background='#e7edf5';
+    cancelButton.style.color='#17304f';
+    cancelButton.style.boxShadow='none';
+    actions.insertBefore(cancelButton, confirmButton);
+
+    cancelButton.addEventListener('click',()=>{
+      cancelButton.remove();
+      confirmButton.onclick=null;
+      closeGttDialog();
+    });
+
+    confirmButton.onclick=()=>{
+      confirmButton.onclick=null;
+      cancelButton.remove();
+      primeBreakAudio_();
+      showBreakTimerPending_(sessionNumber);
+      runSaTransaction(actionCode, sourceButton);
+    };
+  }
+
 
   /**
    * Menampilkan sesi, jam mulai, dan estimasi durasi berjalan.
@@ -1238,7 +2181,36 @@
 
     switch (actionCode) {
       case 'ABSEN_MASUK':
-        runner.apiAbsenMasuk(state.pin);
+      case 'ABSEN_PULANG':
+        showSaActionFeedback(
+          'Memeriksa lokasi outlet...',
+          'info'
+        );
+
+        getFreshLocationForAction_()
+          .then(location => {
+            if (actionCode === 'ABSEN_MASUK') {
+              runner.apiAbsenMasuk(
+                state.pin,
+                location
+              );
+            } else {
+              runner.apiAbsenPulang(
+                state.pin,
+                location
+              );
+            }
+          })
+          .catch(error => {
+            setSaActionProcessing(false);
+
+            showSaActionFeedback(
+              error && error.message
+                ? error.message
+                : 'Lokasi gagal diperiksa.',
+              'error'
+            );
+          });
         break;
 
       case 'MULAI_BREAK_1':
@@ -1255,10 +2227,6 @@
 
       case 'SELESAI_BREAK_2':
         runner.apiSelesaiBreak2(state.pin);
-        break;
-
-      case 'ABSEN_PULANG':
-        runner.apiAbsenPulang(state.pin);
         break;
     }
   }
@@ -1283,6 +2251,7 @@
       'success'
     );
 
+    speakTransactionSuccess_(actionCode);
     reloadSaDashboardAfterTransaction();
   }
 
@@ -1381,6 +2350,7 @@
       sourceButton.textContent = 'MEMPROSES...';
     } else {
       state.actionButtonOriginalLabel = '';
+    state.isManualSync = false;
     }
 
     // Seluruh tombol transaksi dikunci selama satu request berjalan,
@@ -1410,6 +2380,37 @@
         buttonText: 'MENGERTI'
       });
     }
+  }
+
+  function initializeGtt09LockedButtonStyle_() {
+    if (
+      document.getElementById(
+        'gtt09LockedButtonStyle'
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement('style');
+
+    style.id =
+      'gtt09LockedButtonStyle';
+
+    style.textContent = `
+      .gtt-action-locked {
+        opacity: 0.64;
+        cursor: pointer !important;
+        filter: saturate(0.72);
+      }
+
+      .gtt-action-locked:hover,
+      .gtt-action-locked:focus-visible {
+        opacity: 0.78;
+      }
+    `;
+
+    document.head.appendChild(style);
   }
 
   function initializeGttDialog() {
@@ -1697,6 +2698,11 @@
 
     title.textContent = config.title || 'Perhatian';
     message.textContent = String(config.message || '').trim();
+
+    // Rev (3.6.1): setiap dialog baru wajib mengaktifkan ulang tombol utama.
+    button.disabled = false;
+    button.removeAttribute('disabled');
+    button.onclick = null;
     button.textContent = config.buttonText || 'MENGERTI';
 
     if (icon) {
@@ -1994,24 +3000,403 @@
     return Number.isFinite(number) ? number : 0;
   }
 
+  function bindOutsideDuty_(payload) {
+    const data = payload && payload.tugasLuar
+      ? payload.tugasLuar
+      : {};
+
+    state.outsideDutyState = data;
+    populateOutsideDutyOptions_(data);
+
+    const active = Boolean(data.aktif);
+    const formState = document.getElementById('outsideDutyFormState');
+    const activeState = document.getElementById('outsideDutyActiveState');
+
+    if (formState) formState.hidden = active;
+    if (activeState) activeState.hidden = !active;
+
+    const homeBadge =
+      document.getElementById('homeOutsideDutyActiveBadge');
+
+    if (homeBadge) {
+      homeBadge.hidden = !active;
+    }
+
+    stopOutsideDutyTimer_();
+    stopOutsideDutyHomeTimer_();
+
+    if (!active) {
+      return;
+    }
+
+    setText('outsideDutyActiveDestination', data.tujuan || '—');
+    setText('outsideDutyActivePurpose', data.keperluan || '—');
+    setText('outsideDutyActiveApprover', data.disetujuiOleh || '—');
+    setText('outsideDutyStartTime', data.jamKeluar || '--:--:--');
+
+    const tick = () => {
+      const seconds = calculateOutsideDutySeconds_(data);
+      setText('outsideDutyDuration', formatTimerHms_(seconds));
+    };
+
+    const homeTick = () => {
+      const seconds = calculateOutsideDutySeconds_(data);
+      setText(
+        'homeOutsideDutySince',
+        String(data.jamKeluar || '--:--').slice(0, 5)
+      );
+      setText(
+        'homeOutsideDutyDuration',
+        formatTimerHms_(seconds)
+      );
+    };
+
+    tick();
+    homeTick();
+
+    state.outsideDutyTimerId =
+      window.setInterval(tick, 1000);
+
+    state.outsideDutyHomeTimerId =
+      window.setInterval(homeTick, 1000);
+  }
+
+  function populateOutsideDutyOptions_(data) {
+    const destination = document.getElementById('outsideDutyDestinationSelect');
+    const approver = document.getElementById('outsideDutyApproverSelect');
+
+    if (destination) {
+      const selected = destination.value;
+      destination.innerHTML = '<option value="">Pilih tujuan</option>';
+
+      (data.daftarTujuan || []).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.kode || item.nama || '';
+        option.textContent = item.nama || item.kode || '';
+        destination.appendChild(option);
+      });
+
+      const other = document.createElement('option');
+      other.value = '__LAINNYA__';
+      other.textContent = 'Lainnya';
+      destination.appendChild(other);
+
+      if ([...destination.options].some(o => o.value === selected)) {
+        destination.value = selected;
+      }
+    }
+
+    if (approver) {
+      const selected = approver.value;
+      approver.innerHTML = '<option value="">Pilih SL / SPV / Manager</option>';
+
+      (data.daftarPemberiIzin || []).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.pin || item.id || item.nama || '';
+        option.textContent =
+          `${item.nama || '-'} — ${item.jabatan || '-'}`;
+        option.dataset.name = item.nama || '';
+        option.dataset.position = item.jabatan || '';
+        approver.appendChild(option);
+      });
+
+      if ([...approver.options].some(o => o.value === selected)) {
+        approver.value = selected;
+      }
+    }
+  }
+
+  function handleOutsideDestinationChange_() {
+    const select = document.getElementById('outsideDutyDestinationSelect');
+    const wrap = document.getElementById('outsideDutyOtherDestinationWrap');
+    if (!select || !wrap) return;
+    wrap.hidden = select.value !== '__LAINNYA__';
+  }
+
+  function collectOutsideDutyForm_() {
+    const destinationSelect =
+      document.getElementById('outsideDutyDestinationSelect');
+    const otherInput =
+      document.getElementById('outsideDutyOtherDestinationInput');
+    const purposeInput =
+      document.getElementById('outsideDutyPurposeInput');
+    const approverSelect =
+      document.getElementById('outsideDutyApproverSelect');
+
+    const selectedDestination =
+      destinationSelect ? destinationSelect.value : '';
+
+    const destination =
+      !selectedDestination
+        ? ''
+        : selectedDestination === '__LAINNYA__'
+          ? String(
+              otherInput &&
+              otherInput.value ||
+              ''
+            ).trim()
+          : String(
+              destinationSelect &&
+              destinationSelect.options[
+                destinationSelect.selectedIndex
+              ] &&
+              destinationSelect.options[
+                destinationSelect.selectedIndex
+              ].text ||
+              ''
+            ).trim();
+
+    const selectedApprover =
+      approverSelect &&
+      approverSelect.options[approverSelect.selectedIndex];
+
+    return {
+      tujuan: destination,
+      keperluan: String(purposeInput && purposeInput.value || '').trim(),
+      pemberiIzinPin: String(approverSelect && approverSelect.value || '').trim(),
+      pemberiIzinNama: String(selectedApprover && selectedApprover.dataset.name || '').trim(),
+      pemberiIzinJabatan: String(selectedApprover && selectedApprover.dataset.position || '').trim()
+    };
+  }
+
+
+  async function getFreshLocationForAction_() {
+    const location = await refreshGpsWithRetries_(5);
+    if (!location || !Number.isFinite(Number(location.accuracy))) {
+      throw new Error('Data lokasi tidak valid.');
+    }
+    if (Number(location.accuracy) > 150) {
+      const error = new Error('GPS tetap tidak akurat setelah 5 percobaan. Silakan gunakan otorisasi SL/SPV.');
+      error.code = 'GPS_EXCEPTION_AUTH_REQUIRED';
+      error.location = location;
+      error.attempts = state.gpsRecoveryAttempts || 5;
+      window.setTimeout(() => {
+        openGpsExceptionAuthorization_(
+          state.activeActionCode || 'ABSEN_MASUK',
+          location,
+          error.attempts
+        );
+      }, 80);
+      throw error;
+    }
+    return location;
+  }
+
+  function startOutsideDuty_() {
+    const form = collectOutsideDutyForm_();
+
+    if (!form.tujuan) {
+      showGttDialog({
+        title: 'Tujuan Belum Diisi',
+        message: 'Pilih tujuan atau isi tujuan lainnya.',
+        type: 'warning',
+        buttonText: 'MENGERTI'
+      });
+      return;
+    }
+
+    if (!form.keperluan) {
+      showGttDialog({
+        title: 'Keperluan Belum Diisi',
+        message: 'Tuliskan keperluan tugas luar.',
+        type: 'warning',
+        buttonText: 'MENGERTI'
+      });
+      return;
+    }
+
+    if (!form.pemberiIzinPin) {
+      showGttDialog({
+        title: 'Pemberi Izin Belum Dipilih',
+        message: 'Pilih SL, SPV, atau Manager yang memberi izin.',
+        type: 'warning',
+        buttonText: 'MENGERTI'
+      });
+      return;
+    }
+
+    showGttDialog({
+      title: 'Konfirmasi Mulai Tugas Luar',
+      message:
+        `Tujuan: ${form.tujuan}\n` +
+        `Keperluan: ${form.keperluan}\n` +
+        `Disetujui oleh: ${form.pemberiIzinNama} — ${form.pemberiIzinJabatan}`,
+      type: 'warning',
+      buttonText: 'YA, MULAI'
+    });
+
+    const confirm = document.getElementById('gttDialogButton');
+    if (!confirm) return;
+
+    confirm.onclick = () => {
+      confirm.onclick = null;
+      confirm.disabled = true;
+      confirm.textContent = 'MEMPROSES...';
+      closeGttDialog();
+      setOutsideDutyBusy_(true);
+      showSaActionFeedback('Memeriksa lokasi outlet...', 'info');
+
+      getFreshLocationForAction_()
+        .then(location => {
+          google.script.run
+            .withSuccessHandler(response => {
+              setOutsideDutyBusy_(false);
+
+              if (!response || response.success !== true) {
+                showSaActionFeedback(
+                  response && response.message || 'Tugas luar gagal dimulai.',
+                  'error'
+                );
+
+                reloadSaDashboardAfterTransaction();
+                return;
+              }
+
+              showSaActionFeedback(
+                'Tugas luar berhasil dimulai.',
+                'success'
+              );
+
+              reloadSaDashboardAfterTransaction();
+            })
+            .withFailureHandler(error => {
+              setOutsideDutyBusy_(false);
+              showSaActionFeedback(
+                error && error.message || 'Tugas luar gagal dimulai.',
+                'error'
+              );
+            })
+            .apiMulaiTugasLuar(state.pin, form, location);
+        })
+        .catch(error => {
+          setOutsideDutyBusy_(false);
+          showSaActionFeedback(
+            error && error.message || 'Lokasi gagal diperiksa.',
+            'error'
+          );
+        });
+    };
+  }
+
+  function finishOutsideDuty_() {
+    showGttDialog({
+      title: 'Konfirmasi Selesai Tugas Luar',
+      message:
+        'Apakah Anda sudah kembali dan ingin menyelesaikan tugas luar?',
+      type: 'warning',
+      buttonText: 'YA, SELESAIKAN'
+    });
+
+    const confirm = document.getElementById('gttDialogButton');
+    if (!confirm) return;
+
+    confirm.onclick = () => {
+      confirm.onclick = null;
+      confirm.disabled = true;
+      confirm.textContent = 'MEMPROSES...';
+      closeGttDialog();
+      setOutsideDutyBusy_(true);
+      showSaActionFeedback('Memeriksa lokasi kembali...', 'info');
+
+      getFreshLocationForAction_()
+        .then(location => {
+          google.script.run
+            .withSuccessHandler(response => {
+              setOutsideDutyBusy_(false);
+
+              if (!response || response.success !== true) {
+                showSaActionFeedback(
+                  response && response.message || 'Tugas luar gagal diselesaikan.',
+                  'error'
+                );
+
+                reloadSaDashboardAfterTransaction();
+                return;
+              }
+
+              showSaActionFeedback(
+                'Tugas luar berhasil diselesaikan.',
+                'success'
+              );
+
+              reloadSaDashboardAfterTransaction();
+            })
+            .withFailureHandler(error => {
+              setOutsideDutyBusy_(false);
+              showSaActionFeedback(
+                error && error.message || 'Tugas luar gagal diselesaikan.',
+                'error'
+              );
+            })
+            .apiSelesaiTugasLuar(state.pin, location);
+        })
+        .catch(error => {
+          setOutsideDutyBusy_(false);
+          showSaActionFeedback(
+            error && error.message || 'Lokasi gagal diperiksa.',
+            'error'
+          );
+        });
+    };
+  }
+
+  function calculateOutsideDutySeconds_(data) {
+    const raw = data && data.mulaiTimestamp;
+    if (!raw) return 0;
+    const now = Date.now() + state.serverClockOffsetMs;
+    return Math.max(0, Math.floor((now - Number(raw)) / 1000));
+  }
+
+  function stopOutsideDutyTimer_() {
+    if (state.outsideDutyTimerId) {
+      window.clearInterval(state.outsideDutyTimerId);
+    }
+    state.outsideDutyTimerId = null;
+  }
+
+  function stopOutsideDutyHomeTimer_() {
+    if (state.outsideDutyHomeTimerId) {
+      window.clearInterval(
+        state.outsideDutyHomeTimerId
+      );
+    }
+
+    state.outsideDutyHomeTimerId = null;
+  }
+
+  function setOutsideDutyBusy_(busy) {
+    ['outsideDutyActionButton', 'outsideDutyFinishButton'].forEach(id => {
+      const button = document.getElementById(id);
+      if (button) button.disabled = Boolean(busy);
+    });
+  }
+
+
   function openSaTab(tabName) {
+    const normalizedTab =
+      ['home', 'break', 'outside', 'profile'].includes(tabName)
+        ? tabName
+        : 'home';
+
     const tabMap = {
       home: 'saHomeView',
       break: 'saBreakView',
       outside: 'saOutsideDutyView',
-      activity: 'saActivityView',
       profile: 'saProfileView'
     };
 
-    const targetId = tabMap[tabName] || tabMap.home;
+    const targetId = tabMap[normalizedTab];
 
     document.querySelectorAll('.sa-tab-view').forEach(view => {
-      view.classList.toggle('active', view.id === targetId);
+      const active = view.id === targetId;
+      view.classList.toggle('active', active);
+      view.hidden = !active;
     });
 
     document.querySelectorAll('[data-sa-tab]').forEach(button => {
-      const active = button.dataset.saTab === (tabName || 'home');
+      const active = button.dataset.saTab === normalizedTab;
       button.classList.toggle('active', active);
+
       if (active) {
         button.setAttribute('aria-current', 'page');
       } else {
@@ -2019,7 +3404,81 @@
       }
     });
 
+    const pulangButton =
+      document.getElementById('saPulangButton');
+
+    if (pulangButton) {
+      const showPulang =
+        normalizedTab === 'home';
+
+      pulangButton.hidden =
+        !showPulang;
+
+      pulangButton.setAttribute(
+        'aria-hidden',
+        showPulang ? 'false' : 'true'
+      );
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function buildProfileInitials_(name) {
+    const words = String(name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (!words.length) {
+      return 'SA';
+    }
+
+    return words
+      .slice(0, 2)
+      .map(word => word.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  function resetProfilePinVisibility_() {
+    const value =
+      document.getElementById('profilePinValue');
+    const button =
+      document.getElementById('profilePinToggle');
+
+    if (value) {
+      value.textContent = '••••';
+      value.dataset.visible = 'false';
+    }
+
+    if (button) {
+      button.textContent = 'Lihat';
+      button.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  function toggleProfilePinVisibility() {
+    const value =
+      document.getElementById('profilePinValue');
+    const button =
+      document.getElementById('profilePinToggle');
+
+    if (!value || !button) {
+      return;
+    }
+
+    const visible =
+      value.dataset.visible === 'true';
+
+    if (visible) {
+      resetProfilePinVisibility_();
+      return;
+    }
+
+    value.textContent =
+      String(state.pin || '').trim() || '—';
+    value.dataset.visible = 'true';
+    button.textContent = 'Sembunyikan';
+    button.setAttribute('aria-pressed', 'true');
   }
 
   function populateAdminDashboard(user) {
@@ -2047,7 +3506,82 @@
   }
 
   function logout() {
+    if (
+      state.isActionProcessing ||
+      state.isBootstrapProcessing ||
+      state.isRefreshProcessing
+    ) {
+      showGttDialog({
+        title: 'Proses Masih Berjalan',
+        message:
+          'Tunggu sampai proses aplikasi selesai sebelum keluar dari GTT.',
+        type: 'warning',
+        buttonText: 'MENGERTI'
+      });
+      return;
+    }
+
+    showGttDialog({
+      title: 'Anda Akan Keluar GTT',
+      message:
+        'Anda akan keluar dari Grand Time Tracker.\n' +
+        'Data absensi dan break yang sudah tersimpan tidak akan dihapus.',
+      type: 'warning',
+      buttonText: 'YA, KELUAR'
+    });
+
+    const actions = document.querySelector(
+      '#gttDialog .gtt-dialog-actions'
+    );
+    const confirmButton =
+      document.getElementById('gttDialogButton');
+
+    if (!actions || !confirmButton) {
+      return;
+    }
+
+    const cancelButton =
+      document.createElement('button');
+
+    cancelButton.id =
+      'gttDialogCancelButton';
+    cancelButton.type = 'button';
+    cancelButton.textContent =
+      'TIDAK';
+    cancelButton.className =
+      'gtt-dialog-button';
+    cancelButton.style.background =
+      '#e7edf5';
+    cancelButton.style.color =
+      '#17304f';
+    cancelButton.style.boxShadow =
+      'none';
+
+    actions.insertBefore(
+      cancelButton,
+      confirmButton
+    );
+
+    cancelButton.addEventListener(
+      'click',
+      () => {
+        cancelButton.remove();
+        confirmButton.onclick = null;
+        closeGttDialog();
+      }
+    );
+
+    confirmButton.onclick = () => {
+      confirmButton.onclick = null;
+      cancelButton.remove();
+      closeGttDialog();
+      performLogout_();
+    };
+  }
+
+  function performLogout_() {
     stopSaAutoRefresh();
+    resetProfilePinVisibility_();
 
     state.user = null;
     state.pin = '';
@@ -2061,13 +3595,17 @@
     state.serverTimeZone = '';
     state.activeActionCode = '';
     state.actionButtonOriginalLabel = '';
+    stopActiveBreakTimer_();
+    state.breakTimerKey = '';
+    state.breakAlarmFlags = {};
 
     openSaTab('home');
     resetLoginForm();
     showPage('loginPage');
 
     setTimeout(() => {
-      const pinInput = document.getElementById('pinInput');
+      const pinInput =
+        document.getElementById('pinInput');
 
       if (pinInput) {
         pinInput.focus();
@@ -2141,6 +3679,189 @@
       currentlyHidden ? 'Sembunyi' : 'Lihat';
   }
 
+  function loadVoicePreferences_() {
+    try {
+      state.voiceEnabled = localStorage.getItem('gttVoiceEnabled') !== 'false';
+      state.voiceLanguage = localStorage.getItem('gttVoiceLanguage') === 'en-US'
+        ? 'en-US'
+        : 'id-ID';
+    } catch (error) {
+      console.warn('Preferensi suara tidak dapat dibaca:', error);
+      state.voiceEnabled = true;
+      state.voiceLanguage = 'id-ID';
+    }
+  }
+
+  function saveVoicePreferences_() {
+    try {
+      localStorage.setItem('gttVoiceEnabled', String(state.voiceEnabled));
+      localStorage.setItem('gttVoiceLanguage', state.voiceLanguage);
+    } catch (error) {
+      console.warn('Preferensi suara tidak dapat disimpan:', error);
+    }
+  }
+
+  function speakGtt_(text) {
+    const message = String(text || '').trim();
+    if (!message || !state.voiceEnabled || !('speechSynthesis' in window)) {
+      return false;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = state.voiceLanguage;
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+      return true;
+    } catch (error) {
+      console.warn('Voice Assistant gagal:', error);
+      return false;
+    }
+  }
+
+  function speakTransactionSuccess_(actionCode) {
+    const id = {
+      ABSEN_MASUK: 'Absen masuk berhasil. Terima kasih.',
+      MULAI_BREAK_1: 'Break satu dimulai.',
+      SELESAI_BREAK_1: 'Break satu selesai. Silakan kembali bekerja.',
+      MULAI_BREAK_2: 'Break dua dimulai.',
+      SELESAI_BREAK_2: 'Break dua selesai. Silakan kembali bekerja.',
+      ABSEN_PULANG: 'Absen pulang berhasil. Terima kasih.'
+    };
+    const en = {
+      ABSEN_MASUK: 'Attendance check in successful. Thank you.',
+      MULAI_BREAK_1: 'Break one started.',
+      SELESAI_BREAK_1: 'Break one completed. Please return to work.',
+      MULAI_BREAK_2: 'Break two started.',
+      SELESAI_BREAK_2: 'Break two completed. Please return to work.',
+      ABSEN_PULANG: 'Attendance check out successful. Thank you.'
+    };
+    speakGtt_((state.voiceLanguage === 'en-US' ? en : id)[actionCode] || 'Transaksi berhasil.');
+  }
+
+  function updateAttendanceReminder_(attendance) {
+    const source = attendance || {};
+    const hasCheckIn = Boolean(
+      source.jamMasuk || source.checkIn || source.waktuMasuk || source.hasCheckedIn
+    );
+    const banner = document.getElementById('attendanceReminderBanner');
+    if (!banner) return;
+    banner.hidden = hasCheckIn;
+    if (hasCheckIn) {
+      state.attendanceReminderSpokenKey = '';
+      return;
+    }
+    const key = [state.user && state.user.saId || state.pin, new Date().toDateString()].join('|');
+    if (state.attendanceReminderSpokenKey !== key) {
+      state.attendanceReminderSpokenKey = key;
+      window.setTimeout(() => {
+        speakGtt_(state.voiceLanguage === 'en-US'
+          ? 'Please complete your attendance check in.'
+          : 'Silakan lakukan absen masuk.');
+      }, 500);
+    }
+  }
+
+  function getLocationOnce_(timeoutMs) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Perangkat tidak mendukung geolokasi.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const latitude = Number(position.coords.latitude);
+          const longitude = Number(position.coords.longitude);
+          const accuracy = Number(position.coords.accuracy);
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(accuracy)) {
+            reject(new Error('Data lokasi tidak valid.'));
+            return;
+          }
+          resolve({ latitude, longitude, accuracy, timestamp: position.timestamp || Date.now() });
+        },
+        error => reject(new Error(getLocationErrorMessage(error))),
+        { enableHighAccuracy: true, timeout: timeoutMs || 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  function setGpsRecoveryUi_(running, attempt, maxAttempts, best, message) {
+    const progress = document.getElementById('gpsRecoveryProgress');
+    const title = document.getElementById('gpsRecoveryProgressTitle');
+    const text = document.getElementById('gpsRecoveryProgressText');
+    const button = document.getElementById('gpsRefreshButton');
+    if (progress) progress.hidden = !running;
+    if (title) title.textContent = message || (running ? 'Mencari lokasi...' : 'Pemeriksaan selesai');
+    if (text) text.textContent = running
+      ? `Percobaan ${attempt} dari ${maxAttempts}${best ? ` · terbaik ±${Math.round(best.accuracy)} m` : ''}`
+      : (best ? `Akurasi terbaik ±${Math.round(best.accuracy)} m` : 'Lokasi belum tersedia');
+    if (button) {
+      button.disabled = running;
+      button.textContent = running ? 'Mencari GPS...' : 'Perbarui GPS';
+    }
+  }
+
+  async function refreshGpsWithRetries_(maxAttempts, options) {
+    const config = options || {};
+    const attempts = Math.max(1, Math.min(5, Number(maxAttempts) || 5));
+    if (state.gpsRecoveryRunning) return state.gpsRecoveryBest;
+    state.gpsRecoveryRunning = true;
+    state.gpsRecoveryAttempts = 0;
+    state.gpsRecoveryBest = null;
+    const indicator = document.getElementById('locationIndicator');
+    const status = document.getElementById('locationStatus');
+    setLocationStatus(indicator, status, 'checking', 'Mencari lokasi presisi...');
+    setText('systemGpsValue', 'Mencari...');
+    setText('systemGpsDetail', `Percobaan 0 dari ${attempts}`);
+    let lastError = null;
+    try {
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        state.gpsRecoveryAttempts = attempt;
+        setGpsRecoveryUi_(true, attempt, attempts, state.gpsRecoveryBest, 'Mencari lokasi presisi...');
+        try {
+          const location = await getLocationOnce_(15000);
+          if (!state.gpsRecoveryBest || location.accuracy < state.gpsRecoveryBest.accuracy) {
+            state.gpsRecoveryBest = location;
+          }
+          if (location.accuracy <= 50) break;
+        } catch (error) {
+          lastError = error;
+        }
+        if (attempt < attempts) await new Promise(resolve => window.setTimeout(resolve, 900));
+      }
+      if (!state.gpsRecoveryBest) throw lastError || new Error('Lokasi tidak dapat diperoleh.');
+      state.location = state.gpsRecoveryBest;
+      const accuracy = Math.round(state.location.accuracy);
+      const quality = accuracy <= 50 ? 'GPS siap' : accuracy <= 150 ? 'GPS cukup' : 'Akurasi buruk';
+      setLocationStatus(indicator, status, accuracy <= 150 ? 'valid' : 'invalid', `Lokasi tersedia · akurasi ±${accuracy} m`);
+      setText('systemGpsValue', quality);
+      setText('systemGpsDetail', `Akurasi ±${accuracy} m · ${state.gpsRecoveryAttempts} percobaan`);
+      setGpsRecoveryUi_(false, state.gpsRecoveryAttempts, attempts, state.location, quality);
+      if (!config.silent && accuracy > 150) {
+        showGttDialog({
+          title: 'Akurasi GPS Belum Memadai',
+          message: `Akurasi terbaik masih ±${accuracy} meter. Aktifkan lokasi presisi, matikan hemat baterai, pindah ke area terbuka, lalu coba lagi. Jika tetap gagal setelah 5 percobaan, gunakan otorisasi SL/SPV pada proses absensi.`,
+          type: 'warning'
+        });
+      }
+      return state.location;
+    } catch (error) {
+      state.location = null;
+      const message = error && error.message ? error.message : 'Lokasi gagal diperiksa.';
+      setLocationStatus(indicator, status, 'invalid', message);
+      setText('systemGpsValue', 'Tidak tersedia');
+      setText('systemGpsDetail', message);
+      setGpsRecoveryUi_(false, state.gpsRecoveryAttempts, attempts, null, 'GPS gagal');
+      if (!config.silent) showGttDialog({ title: 'GPS Tidak Tersedia', message, type: 'error' });
+      throw error;
+    } finally {
+      state.gpsRecoveryRunning = false;
+      updateLoginButton();
+    }
+  }
+
   function updateInternetStatus() {
     const online = navigator.onLine;
 
@@ -2169,68 +3890,12 @@
         online ? 'Terhubung' : 'Tidak terhubung';
     }
 
+    setText('systemInternetValue', online ? 'Terhubung' : 'Terputus');
     updateLoginButton();
   }
 
   function requestLocation() {
-    const indicator =
-      document.getElementById('locationIndicator');
-
-    const status =
-      document.getElementById('locationStatus');
-
-    if (!navigator.geolocation) {
-      setLocationStatus(
-        indicator,
-        status,
-        'invalid',
-        'Perangkat tidak mendukung lokasi'
-      );
-      return;
-    }
-
-    setLocationStatus(
-      indicator,
-      status,
-      'checking',
-      'Memeriksa izin lokasi...'
-    );
-
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        state.location = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        };
-
-        setLocationStatus(
-          indicator,
-          status,
-          'valid',
-          `Lokasi tersedia · akurasi ±${Math.round(
-            position.coords.accuracy
-          )} m`
-        );
-      },
-
-      error => {
-        state.location = null;
-
-        setLocationStatus(
-          indicator,
-          status,
-          'invalid',
-          getLocationErrorMessage(error)
-        );
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+    refreshGpsWithRetries_(1, { silent: true });
   }
 
   function setLocationStatus(
@@ -2329,6 +3994,8 @@
     setText('currentTime', timeText);
     setText('headerCurrentDate', dateText);
     setText('headerCurrentTime', timeText);
+    setText('historyOperationalDate', dateText);
+    setText('outsideDutyDate', dateText);
   }
 
   function showLoginMessage(message, type) {
@@ -2592,4 +4259,419 @@
       };
     }
   })();
+
+  document.addEventListener('change', event => {
+    if (event.target && event.target.id === 'outsideDutyDestinationSelect') {
+      handleOutsideDestinationChange_();
+    }
+  });
+
+  document.addEventListener('click', event => {
+    const target = event.target.closest('button');
+    if (!target) return;
+
+    if (target.id === 'outsideDutyActionButton') {
+      startOutsideDuty_();
+    }
+
+    if (target.id === 'outsideDutyFinishButton') {
+      finishOutsideDuty_();
+    }
+  });
+
+
+
+  /* =========================================================
+     GTT v0.9.4.3-dev.1.1 — Connectivity & GPS Exception
+     Migration-ready boundary:
+     UI calls named API endpoints and never reads Sheets directly.
+  ========================================================== */
+
+  (() => {
+    const CONNECTIVITY_PING_INTERVAL_MS = 30000;
+    const SERVER_PING_TIMEOUT_MS = 10000;
+    const LOGIN_TIMEOUT_MS = 20000;
+    let serverPingTimer = null;
+    let serverPingSequence = 0;
+    let loginTimeout = null;
+    let lastServerSuccessAt = 0;
+
+    const originalInitializeApp = initializeApp;
+    initializeApp = function () {
+      originalInitializeApp();
+      bindDev11Events_();
+      startConnectivityEngine_();
+    };
+
+    const originalRunLogin = runLogin;
+    runLogin = function () {
+      if (!navigator.onLine) {
+        showLoginMessage('Internet terputus. Periksa koneksi lalu coba lagi.', 'error');
+        speakOnceDev11_('offline-login', 'Koneksi internet terputus.');
+        return;
+      }
+      originalRunLogin();
+      if (state.isLoginProcessing) {
+        clearTimeout(loginTimeout);
+        const requestMarker = Date.now();
+        state.dev11LoginRequestMarker = requestMarker;
+        loginTimeout = window.setTimeout(() => {
+          if (!state.isLoginProcessing || state.dev11LoginRequestMarker !== requestMarker) return;
+          state.dev11LoginRequestMarker = 0;
+          setLoginProcessing(false);
+          showLoginMessage('Server belum merespons. Silakan coba lagi.', 'error');
+          speakOnceDev11_('login-timeout', 'Server belum merespons.');
+          markServerStatusDev11_(false, 'Timeout');
+        }, LOGIN_TIMEOUT_MS);
+      }
+    };
+
+    const originalHandleLoginSuccess = handleLoginSuccess;
+    handleLoginSuccess = function (result) {
+      clearTimeout(loginTimeout);
+      state.dev11LoginRequestMarker = 0;
+      markServerStatusDev11_(true);
+      const failed = !result || result.success !== true;
+      if (failed) {
+        speakOnceDev11_('pin-invalid', 'PIN tidak valid.');
+      }
+      originalHandleLoginSuccess(result);
+    };
+
+    const originalHandleLoginFailure = handleLoginFailure;
+    handleLoginFailure = function (error) {
+      clearTimeout(loginTimeout);
+      state.dev11LoginRequestMarker = 0;
+      markServerStatusDev11_(false, 'Tidak dapat dijangkau');
+      const message = String(error && error.message || '').toLowerCase();
+      speakOnceDev11_(
+        message.includes('pin') ? 'pin-invalid' : 'login-error',
+        message.includes('pin') ? 'PIN tidak valid.' : 'Login gagal. Silakan coba lagi.'
+      );
+      originalHandleLoginFailure(error);
+    };
+
+    function bindDev11Events_() {
+      const pin = document.getElementById('gpsExceptionApproverPin');
+      if (pin) {
+        pin.addEventListener('input', event => {
+          event.target.value = String(event.target.value || '').replace(/\D/g, '').slice(0, 4);
+          setGpsExceptionMessage_('');
+        });
+      }
+      const note = document.getElementById('gpsExceptionNote');
+      if (note) note.addEventListener('input', () => setGpsExceptionMessage_(''));
+
+      const closeButton = document.getElementById('gpsExceptionCloseButton');
+      const cancelButton = document.getElementById('gpsExceptionCancelButton');
+      const submitButton = document.getElementById('gpsExceptionSubmitButton');
+      if (closeButton) closeButton.addEventListener('click', closeGpsExceptionAuthorization_);
+      if (cancelButton) cancelButton.addEventListener('click', closeGpsExceptionAuthorization_);
+      if (submitButton) submitButton.addEventListener('click', submitGpsExceptionAuthorization_);
+      document.querySelectorAll('[data-gps-exception-close]').forEach(node => {
+        node.addEventListener('click', closeGpsExceptionAuthorization_);
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeGpsExceptionAuthorization_();
+      });
+    }
+
+    function startConnectivityEngine_() {
+      window.addEventListener('online', () => {
+        updateInternetStatusDev11_();
+        pingServerDev11_(true);
+        speakOnceDev11_('online-restored', 'Koneksi internet kembali terhubung.');
+      });
+      window.addEventListener('offline', () => {
+        updateInternetStatusDev11_();
+        speakOnceDev11_('offline', 'Koneksi internet terputus.');
+      });
+      updateInternetStatusDev11_();
+      pingServerDev11_(true);
+      clearInterval(serverPingTimer);
+      serverPingTimer = window.setInterval(() => pingServerDev11_(false), CONNECTIVITY_PING_INTERVAL_MS);
+    }
+
+    updateInternetStatus = updateInternetStatusDev11_;
+    handleConnectionOnline = function () {
+      updateInternetStatusDev11_();
+      pingServerDev11_(true);
+      if (isSaSessionActive()) runSaStatusRefresh();
+    };
+
+    function updateInternetStatusDev11_() {
+      const online = navigator.onLine === true;
+      state.online = online;
+      const indicator = document.getElementById('internetIndicator');
+      const status = document.getElementById('internetStatus');
+      if (indicator) {
+        indicator.classList.remove('online', 'offline', 'checking');
+        indicator.classList.add(online ? 'online' : 'offline');
+      }
+      if (status) status.textContent = online ? 'Terhubung' : 'Tidak terhubung';
+      setText('systemInternetValue', online ? 'Terhubung' : 'Terputus');
+      setStatusCardClassDev11_('systemInternetValue', online ? 'online' : 'offline');
+
+      if (!online) {
+        markServerStatusDev11_(false, 'Tidak dapat dijangkau');
+        setText('systemDatabaseValue', 'Data terakhir');
+        const last = lastServerSuccessAt || state.lastRefreshAt || state.lastRefreshAt;
+        if (last) setText('profileLastSync', formatDateTimeDev11_(last) + ' · Offline');
+      }
+      updateLoginButton();
+    }
+
+    function pingServerDev11_(force) {
+      if (!navigator.onLine) {
+        updateInternetStatusDev11_();
+        return;
+      }
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        markServerStatusDev11_(false, 'Web App tidak valid');
+        return;
+      }
+      const seq = ++serverPingSequence;
+      markServerCheckingDev11_();
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled || seq !== serverPingSequence) return;
+        settled = true;
+        markServerStatusDev11_(false, 'Timeout');
+      }, SERVER_PING_TIMEOUT_MS);
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (settled || seq !== serverPingSequence) return;
+          settled = true;
+          clearTimeout(timer);
+          const ok = result && result.success === true;
+          if (ok) {
+            lastServerSuccessAt = Date.now();
+            markServerStatusDev11_(true);
+            setText('systemDatabaseValue', 'Sinkron');
+            setText('profileLastSync', formatDateTimeDev11_(lastServerSuccessAt));
+          } else {
+            markServerStatusDev11_(false, 'Respons tidak valid');
+          }
+        })
+        .withFailureHandler(() => {
+          if (settled || seq !== serverPingSequence) return;
+          settled = true;
+          clearTimeout(timer);
+          markServerStatusDev11_(false, 'Tidak dapat dijangkau');
+        })
+        .apiPingServerGttDev11();
+    }
+
+    function markServerCheckingDev11_() {
+      setText('systemServerValue', 'Memeriksa...');
+      setStatusCardClassDev11_('systemServerValue', 'checking');
+    }
+
+    function markServerStatusDev11_(online, label) {
+      const isOnline = online === true && navigator.onLine;
+      state.serverReachable = isOnline;
+      setText('systemServerValue', isOnline ? 'Online' : (label || 'Tidak dapat dijangkau'));
+      setStatusCardClassDev11_('systemServerValue', isOnline ? 'online' : 'offline');
+      const badge = document.getElementById('profileSyncBadge');
+      if (badge) {
+        badge.textContent = isOnline ? 'Terhubung' : 'Offline';
+        badge.className = 'profile-sync-badge ' + (isOnline ? 'sync-success' : 'sync-error');
+      }
+    }
+
+    function setStatusCardClassDev11_(childId, status) {
+      const child = document.getElementById(childId);
+      const card = child && child.closest('.system-status-item');
+      if (!card) return;
+      card.classList.remove('status-online', 'status-warning', 'status-offline', 'status-checking');
+      card.classList.add('status-' + status);
+    }
+
+    function formatDateTimeDev11_(timestamp) {
+      try {
+        return new Intl.DateTimeFormat('id-ID', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: false
+        }).format(new Date(timestamp));
+      } catch (_) {
+        return new Date(timestamp).toLocaleString('id-ID');
+      }
+    }
+
+    const voiceEventMemory = new Map();
+    function speakOnceDev11_(key, text) {
+      const now = Date.now();
+      const previous = voiceEventMemory.get(key) || 0;
+      if (now - previous < 3500) return false;
+      voiceEventMemory.set(key, now);
+      return speakGtt_(state.voiceLanguage === 'en-US'
+        ? ({
+            'pin-invalid': 'Invalid PIN.',
+            'offline': 'Internet connection lost.',
+            'offline-login': 'Internet connection lost.',
+            'login-timeout': 'The server is not responding.',
+            'login-error': 'Login failed. Please try again.',
+            'online-restored': 'Internet connection restored.',
+            'gps-exception-success': 'Exception attendance recorded successfully.'
+          }[key] || text)
+        : text);
+    }
+
+    window.openGpsExceptionAuthorization_ = function (actionCode, location, attempts) {
+      if (!isSaSessionActive()) return;
+      const action = ['ABSEN_MASUK', 'ABSEN_PULANG'].includes(actionCode)
+        ? actionCode : 'ABSEN_MASUK';
+      const safeLocation = location || state.gpsRecoveryBest || state.location;
+      if (!safeLocation || !Number.isFinite(Number(safeLocation.accuracy))) return;
+
+      state.gpsExceptionContext = {
+        actionCode: action,
+        location: {
+          latitude: Number(safeLocation.latitude),
+          longitude: Number(safeLocation.longitude),
+          accuracy: Number(safeLocation.accuracy),
+          timestamp: Number(safeLocation.timestamp || Date.now())
+        },
+        attempts: Math.max(1, Number(attempts) || state.gpsRecoveryAttempts || 5)
+      };
+
+      setText('gpsExceptionAccuracy', `±${Math.round(safeLocation.accuracy)} m`);
+      setText('gpsExceptionAttempts', `${state.gpsExceptionContext.attempts} percobaan GPS`);
+      setGpsExceptionMessage_('');
+      const pin = document.getElementById('gpsExceptionApproverPin');
+      const note = document.getElementById('gpsExceptionNote');
+      if (pin) pin.value = '';
+      if (note) note.value = '';
+
+      const modal = document.getElementById('gpsExceptionModal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('gps-exception-open');
+      }
+      loadGpsExceptionApprovers_();
+    };
+
+    window.closeGpsExceptionAuthorization_ = function () {
+      if (state.gpsExceptionSubmitting) return;
+      const modal = document.getElementById('gpsExceptionModal');
+      if (modal) {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+      }
+      document.body.classList.remove('gps-exception-open');
+      state.gpsExceptionContext = null;
+    };
+
+    function loadGpsExceptionApprovers_() {
+      const select = document.getElementById('gpsExceptionApproverSelect');
+      if (!select) return;
+      select.innerHTML = '<option value="">Memuat daftar SL/SPV...</option>';
+      select.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(result => {
+          select.disabled = false;
+          const list = result && result.success && Array.isArray(result.data) ? result.data : [];
+          select.innerHTML = '<option value="">Pilih SL/SPV</option>';
+          list.forEach(item => {
+            const option = document.createElement('option');
+            option.value = String(item.pin || '');
+            option.textContent = `${item.nama} — ${item.jabatan}`;
+            option.dataset.name = String(item.nama || '');
+            option.dataset.position = String(item.jabatan || '');
+            select.appendChild(option);
+          });
+          if (!list.length) setGpsExceptionMessage_('SL/SPV aktif di outlet ini tidak ditemukan.');
+        })
+        .withFailureHandler(error => {
+          select.disabled = false;
+          select.innerHTML = '<option value="">Gagal memuat SL/SPV</option>';
+          setGpsExceptionMessage_(
+            error && error.message ? error.message : 'Daftar SL/SPV gagal dimuat.'
+          );
+        })
+        .apiGetGpsExceptionApproversGttDev11(state.pin);
+    }
+
+    function submitGpsExceptionAuthorization_() {
+      if (state.gpsExceptionSubmitting) return;
+      const context = state.gpsExceptionContext;
+      const select = document.getElementById('gpsExceptionApproverSelect');
+      const approverPinInput = document.getElementById('gpsExceptionApproverPin');
+      const noteInput = document.getElementById('gpsExceptionNote');
+      const submit = document.getElementById('gpsExceptionSubmitButton');
+
+      const selectedPin = String(select && select.value || '').trim();
+      const typedPin = String(approverPinInput && approverPinInput.value || '').trim();
+      const note = String(noteInput && noteInput.value || '').trim();
+
+      if (!context) return setGpsExceptionMessage_('Data GPS tidak tersedia. Tutup dan coba ulang.');
+      if (!/^\d{4}$/.test(selectedPin)) return setGpsExceptionMessage_('Pilih SL/SPV pemberi otorisasi.');
+      if (!/^\d{4}$/.test(typedPin)) return setGpsExceptionMessage_('PIN SL/SPV harus 4 angka.');
+      if (selectedPin !== typedPin) return setGpsExceptionMessage_('PIN tidak sesuai dengan SL/SPV yang dipilih.');
+      if (typedPin === state.pin) return setGpsExceptionMessage_('SA tidak boleh mengotorisasi dirinya sendiri.');
+      if (note.length < 5) return setGpsExceptionMessage_('Catatan minimal 5 karakter.');
+      if (note.length > 200) return setGpsExceptionMessage_('Catatan maksimal 200 karakter.');
+      if (!navigator.onLine) return setGpsExceptionMessage_('Internet terputus. Sambungkan internet lalu coba lagi.');
+
+      state.gpsExceptionSubmitting = true;
+      if (submit) {
+        submit.disabled = true;
+        submit.textContent = 'Memverifikasi...';
+      }
+      setGpsExceptionMessage_('Memverifikasi otorisasi dan menyimpan absensi...');
+
+      const payload = {
+        saPin: state.pin,
+        actionCode: context.actionCode,
+        approverPin: typedPin,
+        note,
+        gps: context.location,
+        attempts: context.attempts,
+        clientVersion: GTT_APP_VERSION
+      };
+
+      google.script.run
+        .withSuccessHandler(result => {
+          state.gpsExceptionSubmitting = false;
+          if (submit) {
+            submit.disabled = false;
+            submit.textContent = 'Otorisasi & Proses Absen';
+          }
+          if (!result || result.success !== true) {
+            const msg = result && result.message ? result.message : 'Otorisasi gagal.';
+            setGpsExceptionMessage_(msg);
+            if (/pin/i.test(msg)) speakOnceDev11_('pin-invalid', 'PIN tidak valid.');
+            return;
+          }
+          setGpsExceptionMessage_(result.message || 'Absensi pengecualian berhasil.', true);
+          speakOnceDev11_('gps-exception-success', 'Absen pengecualian berhasil. Terima kasih.');
+          window.setTimeout(() => {
+            closeGpsExceptionAuthorization_();
+            runSaStatusRefresh();
+          }, 900);
+        })
+        .withFailureHandler(error => {
+          state.gpsExceptionSubmitting = false;
+          if (submit) {
+            submit.disabled = false;
+            submit.textContent = 'Otorisasi & Proses Absen';
+          }
+          setGpsExceptionMessage_(error && error.message
+            ? error.message : 'Server gagal memproses otorisasi.');
+        })
+        .apiProcessGpsExceptionAttendanceGttDev11(payload);
+    }
+
+    function setGpsExceptionMessage_(message, success) {
+      const element = document.getElementById('gpsExceptionMessage');
+      if (!element) return;
+      element.textContent = message || '';
+      element.className = 'gps-exception-message' + (success ? ' success' : '');
+    }
+  })();
+
 </script>

@@ -1,10 +1,9 @@
 /**
- * =====================================================
- * GRAND TIME TRACKER — GTT
- * Module : GTT-08 Break Time Engine
- * Version: 2.2.0
- * Status : STABLE — FIXED DEPENDENCY DIAGNOSTICS
- * =====================================================
+ * GRAND TIME TRACKER
+ * File: BreakTime.gs
+ * Build: GTT v0.9.3-dev(2) Rev (3.4)
+ * Build Date: 2026-08-03
+ * Module: Final Activity, Footer, Version Stamp & Favicon
  */
 
 /**
@@ -146,15 +145,32 @@ function mulaiBreak_(pinInput, nomorBreak) {
     var maxIstirahat = pengaturan.maxBreakBersamaan;
 
     if (jumlahSedangBreak >= maxIstirahat) {
+      var templateKapasitas =
+        pengaturan.warningKapasitas ||
+        (
+          'MAKSIMAL {{JUMLAH}} SA DAPAT BREAK ' +
+          'BERSAMAAN. SILAKAN TUNGGU SA LAIN ' +
+          'SELESAI BREAK.'
+        );
+
+      var pesanKapasitas =
+        gantiPlaceholderBreak_(
+          templateKapasitas,
+          {
+            JUMLAH:
+              maxIstirahat,
+            MAKSIMAL:
+              maxIstirahat,
+            SEDANG:
+              jumlahSedangBreak
+          }
+        );
+
       return {
         success: false,
         code: 'KAPASITAS_BREAK_PENUH',
         message:
-          'Kapasitas istirahat Outlet ' +
-          pengguna.outlet +
-          ' sedang penuh. Maksimal ' +
-          maxIstirahat +
-          ' orang dapat beristirahat bersamaan.',
+          pesanKapasitas,
         data: {
           outlet: pengguna.outlet,
           sedangBreak: jumlahSedangBreak,
@@ -171,7 +187,8 @@ function mulaiBreak_(pinInput, nomorBreak) {
         headerMap,
         pengguna,
         sekarang,
-        zonaWaktu
+        zonaWaktu,
+        tanggalHariIni
       );
     } else {
       nomorBaris = dataLog.nomorBaris;
@@ -548,12 +565,22 @@ function ambilKonteksBreak_(pinInput) {
   var zonaWaktu =
     spreadsheet.getSpreadsheetTimeZone();
 
-  var sekarang = typeof gttSekarang_ === 'function' 
-    ? gttSekarang_(pengguna.pin) 
-    : new Date();
+  var infoWaktu = typeof gttInfoWaktu_ === 'function'
+    ? gttInfoWaktu_(pengguna.pin)
+    : {
+        sekarang: new Date(),
+        waktuServerAsli: new Date(),
+        modeUjiAktif: false,
+        tambahMenitDiterapkan: 0
+      };
 
+  // Waktu virtual dipakai hanya untuk validasi jeda/durasi.
+  var sekarang = infoWaktu.sekarang;
+
+  // Tanggal transaksi tetap mengikuti tanggal server asli agar
+  // Mode Uji tidak memindahkan data ke hari berikutnya.
   var tanggalHariIni = Utilities.formatDate(
-    sekarang,
+    infoWaktu.waktuServerAsli,
     zonaWaktu,
     'yyyy-MM-dd'
   );
@@ -855,6 +882,9 @@ function ambilPengaturanBreak_() {
     warningSanksi:
       sanksi.warning,
 
+    warningKapasitas:
+      maxBreakBersamaan.warning,
+
     warningJedaMasukKeBreak1:
       jedaMasukKeBreak1.warning,
 
@@ -1067,25 +1097,31 @@ function cariAbsensiAktifHariIni_(
       );
 
     var statusKehadiran =
-      normalisasiHeader_(
-        baris[
-          headerMap['STATUS KEHADIRAN']
-        ]
-      );
+      headerMap['STATUS KEHADIRAN'] !==
+        undefined
+        ? normalisasiHeader_(
+            baris[
+              headerMap['STATUS KEHADIRAN']
+            ]
+          )
+        : '';
 
-    var statusDiizinkan = [
-      'HADIR',
-      'HADIR PENUH',
-      '1/2 HARI',
-      'HADIR 1/2 HARI'
-    ];
+    var jamMasuk =
+      baris[
+        headerMap['JAM MASUK']
+      ];
 
+    var jamMasukTerisi =
+      jamMasuk !== '' &&
+      jamMasuk !== null &&
+      jamMasuk !== undefined;
+
+    // Validasi Break tidak bergantung pada KETERANGAN
+    // maupun STATUS KEHADIRAN. Status hanya informasi.
     if (
       pinData === String(pin).trim() &&
       tanggalData === tanggalHariIni &&
-      statusDiizinkan.includes(
-        statusKehadiran
-      )
+      jamMasukTerisi
     ) {
       return {
         ditemukan: true,
@@ -1093,7 +1129,7 @@ function cariAbsensiAktifHariIni_(
         statusKehadiran:
           statusKehadiran,
         jamMasuk:
-          baris[headerMap['JAM MASUK']]
+          jamMasuk
       };
     }
   }
@@ -1171,7 +1207,8 @@ function buatBarisLogIstirahatBaru_(
   headerMap,
   pengguna,
   sekarang,
-  zonaWaktu
+  zonaWaktu,
+  tanggalOperasional
 ) {
   var nomorBaris =
     sheet.getLastRow() + 1;
@@ -1190,8 +1227,13 @@ function buatBarisLogIstirahatBaru_(
 
   var dataBaru = {
     'ID': idLog,
+    // Identitas tanggal LOG selalu memakai tanggal operasional
+    // (tanggal server asli), bukan tanggal waktu virtual Mode Uji.
     'TANGGAL':
-      buatTanggalTanpaJam_(sekarang),
+      buatTanggalOperasionalBreak_(
+        tanggalOperasional,
+        sekarang
+      ),
     'PIN': pengguna.pin,
     'NAMA SA': pengguna.namaSA,
     'OUTLET': pengguna.outlet,
@@ -1231,6 +1273,48 @@ function buatBarisLogIstirahatBaru_(
 
   return nomorBaris;
 }
+
+
+/**
+ * Membuat nilai tanggal LOG_ISTIRAHAT berdasarkan tanggal operasional.
+ * Mode Uji boleh melewati tengah malam, tetapi baris LOG tetap terikat
+ * pada tanggal server asli saat transaksi dimulai.
+ *
+ * @param {string} tanggalOperasional yyyy-MM-dd
+ * @param {Date} fallbackDate
+ * @return {Date}
+ */
+function buatTanggalOperasionalBreak_(
+  tanggalOperasional,
+  fallbackDate
+) {
+  var teks = String(
+    tanggalOperasional || ''
+  ).trim();
+
+  var cocok = teks.match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (cocok) {
+    return new Date(
+      Number(cocok[1]),
+      Number(cocok[2]) - 1,
+      Number(cocok[3]),
+      12,
+      0,
+      0,
+      0
+    );
+  }
+
+  return buatTanggalTanpaJam_(
+    fallbackDate instanceof Date
+      ? fallbackDate
+      : new Date()
+  );
+}
+
 
 /**
  * Validasi sebelum mulai Break 1.
@@ -1556,9 +1640,19 @@ function normalisasiWaktuAktivitasBreak_(
   var detikTarget =
     jam * 3600 + menit * 60 + detik;
 
+  var selisihDetik =
+    detikTarget - detikSekarang;
+
+  // Mode Uji dapat melewati tengah malam. Jika jam aktivitas
+  // terlihat lebih besar daripada jam virtual sekarang, aktivitas
+  // tersebut adalah kejadian pada hari sebelumnya, bukan masa depan.
+  if (selisihDetik > 0) {
+    selisihDetik -= 24 * 60 * 60;
+  }
+
   return new Date(
     sekarang.getTime() +
-    (detikTarget - detikSekarang) * 1000
+    selisihDetik * 1000
   );
 }
 
