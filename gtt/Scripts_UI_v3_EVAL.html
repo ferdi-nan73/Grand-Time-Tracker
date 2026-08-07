@@ -1,0 +1,99 @@
+<script>
+  /** GTT Dashboard SA v3 — evaluation behavior */
+  (() => {
+    let durationTimerId = null;
+    const previousRenderSaDashboard = renderSaDashboard;
+    const previousBindBreakOverview = bindBreakOverview;
+
+    renderSaDashboard = function (payload) {
+      previousRenderSaDashboard(payload);
+      updateEvaluationDashboard(payload || {});
+    };
+
+    bindBreakOverview = function (breakData, operational) {
+      previousBindBreakOverview(breakData, operational);
+      updateBreakIndicator(breakData || {});
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      syncHeaderClock();
+      window.setInterval(syncHeaderClock, 1000);
+    });
+
+    function updateEvaluationDashboard(payload) {
+      updateBreakIndicator(payload.break || {});
+      startWorkDurationClock(payload.operasional || {});
+      mirrorActivityHistory();
+    }
+
+    function syncHeaderClock() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('id-ID', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
+      const date = now.toLocaleDateString('id-ID', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+      });
+      setText('headerCurrentTime', time.replace(/\./g, ':'));
+      setText('headerCurrentDate', date);
+    }
+
+    function startWorkDurationClock(operational) {
+      if (durationTimerId) window.clearInterval(durationTimerId);
+
+      const checkIn = parseGttTime(operational.jamMasuk || operational.waktuMasuk);
+      const checkOut = parseGttTime(operational.jamPulang || operational.waktuPulang);
+
+      const render = () => {
+        if (!checkIn) {
+          setText('workDurationToday', '00 jam 00 menit');
+          return;
+        }
+        const end = checkOut || new Date();
+        const minutes = Math.max(0, Math.floor((end - checkIn) / 60000));
+        setText(
+          'workDurationToday',
+          `${String(Math.floor(minutes / 60)).padStart(2, '0')} jam ${String(minutes % 60).padStart(2, '0')} menit`
+        );
+      };
+
+      render();
+      if (!checkOut && checkIn) durationTimerId = window.setInterval(render, 30000);
+    }
+
+    function parseGttTime(value) {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+      const text = String(value).trim();
+      const fullDate = new Date(text);
+      if (!Number.isNaN(fullDate.getTime())) return fullDate;
+      const match = text.match(/(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?/);
+      if (!match) return null;
+      const date = new Date();
+      date.setHours(Number(match[1]), Number(match[2]), Number(match[3] || 0), 0);
+      return date;
+    }
+
+    function updateBreakIndicator(breakData) {
+      const indicator = document.getElementById('breakStatusIndicator');
+      if (!indicator) return;
+      const b1 = String((breakData.break1 || {}).status || '').toUpperCase();
+      const b2 = String((breakData.break2 || {}).status || '').toUpperCase();
+      const active = b1 === 'SEDANG BREAK' || b2 === 'SEDANG BREAK';
+      const complete = b1 === 'SELESAI' && b2 === 'SELESAI';
+
+      indicator.classList.toggle('is-breaking', active);
+      indicator.classList.toggle('is-complete', complete);
+      setText('breakIndicatorLabel', active ? 'Sedang Break' : complete ? 'Break Selesai' : 'Tidak Break');
+    }
+
+    function mirrorActivityHistory() {
+      const source = document.getElementById('dailyActivity');
+      const target = document.getElementById('outsideActivityHistoryMirror');
+      if (!source || !target) return;
+      target.innerHTML = source.innerHTML;
+      target.className = source.className;
+      target.id = 'outsideActivityHistoryMirror';
+    }
+  })();
+</script>
