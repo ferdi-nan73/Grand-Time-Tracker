@@ -1,0 +1,110 @@
+<style>
+  /* GTT Dashboard SA v3 — evaluation layer */
+  #saDashboardPage .dashboard-header {
+    align-items: center;
+    gap: 16px;
+    padding: 4px 2px 0;
+  }
+
+  #saDashboardPage .dashboard-live-clock {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 132px;
+    padding: 10px 12px;
+    border: 1px solid #dbe6f3;
+    border-radius: 16px;
+    background: #f7faff;
+    color: #17304f;
+  }
+
+  #saDashboardPage .dashboard-live-clock strong {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  #saDashboardPage .dashboard-live-clock span {
+    margin-top: 5px;
+    color: #60758d;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  #saDashboardPage .legacy-clock-card { display: none; }
+
+  #saDashboardPage .work-duration-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid #dce7f4;
+    border-radius: 14px;
+    background: #f7faff;
+  }
+
+  #saDashboardPage .work-duration-row span {
+    color: #60758d;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  #saDashboardPage .work-duration-row strong {
+    color: #0d47a1;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  #saDashboardPage .warning-area[hidden] { display: none !important; }
+
+  #saDashboardPage .break-status-indicator {
+    cursor: default;
+    opacity: 1;
+  }
+
+  #saDashboardPage .break-status-indicator:disabled {
+    color: #697b8f;
+    opacity: 1;
+  }
+
+  #saDashboardPage .break-status-indicator.is-breaking {
+    background: #fff1e8;
+    color: #c2410c;
+  }
+
+  #saDashboardPage .break-status-indicator.is-breaking .sa-nav-icon {
+    animation: gttCupPulse 1.4s ease-in-out infinite;
+  }
+
+  #saDashboardPage .break-status-indicator.is-complete {
+    color: #16803b;
+  }
+
+  #saDashboardPage .activity-history-inline {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid #e1e9f2;
+  }
+
+  #saDashboardPage .sa-bottom-navigation {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @keyframes gttCupPulse {
+    50% { transform: translateY(-2px) scale(1.08); }
+  }
+
+  @media (max-width: 480px) {
+    #saDashboardPage .dashboard-header { align-items: stretch; }
+    #saDashboardPage .dashboard-live-clock { min-width: 112px; padding: 9px 10px; }
+    #saDashboardPage .dashboard-live-clock strong { font-size: 18px; }
+    #saDashboardPage .dashboard-live-clock span { max-width: 112px; font-size: 9px; }
+    #saDashboardPage .work-duration-row { align-items: flex-start; flex-direction: column; gap: 4px; }
+  }
+</style>

@@ -1,0 +1,230 @@
+<script>
+  /**
+   * GTT Frontend UI v2.1
+   * Modul kecil untuk tombol PULANG pada header Dashboard SA.
+   * Dimuat setelah file Scripts utama agar tidak perlu mengganti script panjang.
+   */
+  (() => {
+    const originalBindMainActionPreview = bindMainActionPreview;
+
+    bindMainActionPreview = function (operational, breakData) {
+      originalBindMainActionPreview(operational, breakData);
+      updateHeaderPulangButton(operational, breakData);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const button = document.getElementById('saPulangButton');
+
+      if (!button) {
+        return;
+      }
+
+      button.addEventListener('click', handleHeaderPulangClick);
+      updateHeaderPulangButton({}, {});
+    });
+
+    function handleHeaderPulangClick() {
+      if (state.isActionProcessing) {
+        return;
+      }
+
+      if (!isSaSessionActive()) {
+        showHeaderPulangDialog(
+          'Sesi Belum Aktif',
+          'Silakan login kembali sebelum melakukan absen pulang.',
+          'warning'
+        );
+        return;
+      }
+
+      const payload = state.bootstrapData || {};
+      const operational = payload.operasional || {};
+      const breakData = payload.break || {};
+      const status = normalizeOperationalStatus(
+        operational.statusOperasional
+      );
+      const break1 = getBreakStatus(breakData, 1);
+      const break2 = getBreakStatus(breakData, 2);
+
+      if (status === 'SUDAH PULANG' || isSaCheckedOut(operational)) {
+        showHeaderPulangDialog(
+          'Absen Pulang Sudah Tercatat',
+          'Aktivitas kerja hari ini sudah selesai.',
+          'success'
+        );
+        return;
+      }
+
+      if (status === 'BELUM ABSEN') {
+        showHeaderPulangDialog(
+          'Belum Bisa Pulang',
+          'Lakukan absen masuk terlebih dahulu.',
+          'warning'
+        );
+        return;
+      }
+
+      if (break1 === 'SEDANG BREAK') {
+        showHeaderPulangDialog(
+          'Break 1 Masih Berlangsung',
+          'Akhiri Break 1 terlebih dahulu sebelum melakukan absen pulang.',
+          'warning'
+        );
+        return;
+      }
+
+      if (break2 === 'SEDANG BREAK') {
+        showHeaderPulangDialog(
+          'Break 2 Masih Berlangsung',
+          'Akhiri Break 2 terlebih dahulu sebelum melakukan absen pulang.',
+          'warning'
+        );
+        return;
+      }
+
+      // Break yang BELUM DIAMBIL bukan break aktif dan tidak boleh
+      // menghalangi absen pulang. Pengguna cukup mengonfirmasi pulang.
+      showPulangConfirmation(getCurrentDeviceClock());
+    }
+
+    function updateHeaderPulangButton(operational, breakData) {
+      const button = document.getElementById('saPulangButton');
+
+      if (!button) {
+        return;
+      }
+
+      const source = operational || {};
+      const breaks = breakData || {};
+      const status = normalizeOperationalStatus(
+        source.statusOperasional
+      );
+      const checkedOut =
+        status === 'SUDAH PULANG' || isSaCheckedOut(source);
+      const hasActiveBreak =
+        getBreakStatus(breaks, 1) === 'SEDANG BREAK' ||
+        getBreakStatus(breaks, 2) === 'SEDANG BREAK';
+
+      button.classList.toggle(
+        'is-ready',
+        !hasActiveBreak && !checkedOut && !state.isActionProcessing
+      );
+
+      if (state.isActionProcessing) {
+        button.textContent = 'MEMPROSES...';
+        button.disabled = true;
+        button.setAttribute('aria-label', 'Sedang memproses transaksi');
+        return;
+      }
+
+      button.textContent = checkedOut ? 'SELESAI' : 'PULANG';
+      button.disabled = checkedOut;
+      button.setAttribute(
+        'aria-label',
+        checkedOut ? 'Absen pulang sudah tercatat' : 'Absen pulang'
+      );
+      button.title = checkedOut
+        ? 'Absen pulang sudah tercatat'
+        : !hasActiveBreak
+          ? 'Siap melakukan absen pulang'
+          : 'Akhiri break yang sedang berlangsung terlebih dahulu';
+    }
+
+    function getBreakStatus(breakData, sessionNumber) {
+      const session =
+        (breakData && breakData[`break${sessionNumber}`]) || {};
+
+      return String(session.status || 'BELUM DIAMBIL')
+        .trim()
+        .toUpperCase();
+    }
+
+    function showHeaderPulangDialog(title, message, type) {
+      const oldCancel = document.getElementById(
+        'gttDialogCancelButton'
+      );
+      if (oldCancel) {
+        oldCancel.remove();
+      }
+
+      const oldPrimary = document.getElementById('gttDialogButton');
+      if (oldPrimary) {
+        oldPrimary.onclick = null;
+      }
+
+      showGttDialog({
+        title: title,
+        message: message,
+        type: type,
+        buttonText: 'MENGERTI'
+      });
+    }
+
+    function getCurrentDeviceClock() {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes()
+      ).padStart(2, '0')}`;
+    }
+
+    function showPulangConfirmation(clockText) {
+      showGttDialog({
+        title: 'Konfirmasi Pulang',
+        message: `Apakah Anda akan mengakhiri pekerjaan dan pulang pukul ${clockText}?`,
+        type: 'warning',
+        buttonText: 'YA, PULANG'
+      });
+
+      const actions = document.querySelector(
+        '#gttDialog .gtt-dialog-actions'
+      );
+      const confirmButton = document.getElementById('gttDialogButton');
+
+      if (!actions || !confirmButton) {
+        return;
+      }
+
+      const oldCancel = document.getElementById(
+        'gttDialogCancelButton'
+      );
+      if (oldCancel) {
+        oldCancel.remove();
+      }
+
+      const cancelButton = document.createElement('button');
+      cancelButton.id = 'gttDialogCancelButton';
+      cancelButton.type = 'button';
+      cancelButton.textContent = 'BATAL';
+      cancelButton.className = 'gtt-dialog-button';
+      cancelButton.style.background = '#e7edf5';
+      cancelButton.style.color = '#17304f';
+      cancelButton.style.boxShadow = 'none';
+      cancelButton.style.marginRight = '10px';
+      actions.insertBefore(cancelButton, confirmButton);
+
+      cancelButton.addEventListener('click', () => {
+        cancelButton.remove();
+        confirmButton.onclick = null;
+        closeGttDialog();
+      });
+
+      confirmButton.onclick = () => {
+        const currentTitle = document.getElementById(
+          'gttDialogTitle'
+        );
+        confirmButton.onclick = null;
+
+        if (
+          !currentTitle ||
+          currentTitle.textContent !== 'Konfirmasi Pulang'
+        ) {
+          return;
+        }
+
+        cancelButton.remove();
+        const button = document.getElementById('saPulangButton');
+        runSaTransaction('ABSEN_PULANG', button);
+      };
+    }
+  })();
+</script>
