@@ -1,0 +1,2367 @@
+<script>
+/* ============================================================
+   GTT v1.0.0-Beta.1 — PATROL UI ROUTING PATCH
+   ADDITIVE ONLY. Tidak mengganti/menimpa fungsi existing.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  function formatPatrolDateBeta1_() {
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Makassar',
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      }).format(new Date());
+    } catch (error) {
+      return new Date().toLocaleDateString('id-ID');
+    }
+  }
+
+  function syncPatrolIdentityBeta1_() {
+    const date = document.getElementById('patrolCurrentDate');
+    const name = document.getElementById('patrolEmployeeName');
+    const summary = document.getElementById('patrolEmployeeSummary');
+    const profileName = document.getElementById('profileName');
+    const profileSummary = document.getElementById('profileSummary');
+
+    if (date) date.textContent = formatPatrolDateBeta1_();
+    if (name && profileName) name.textContent = profileName.textContent || 'Nama Karyawan';
+    if (summary && profileSummary) summary.textContent = profileSummary.textContent || 'Jabatan · Outlet';
+  }
+
+  function openPatrolBeta1_() {
+    const patrolView = document.getElementById('saPatrolView');
+    if (!patrolView) return;
+
+    document.querySelectorAll('.sa-tab-view').forEach(view => {
+      const active = view === patrolView;
+      view.classList.toggle('active', active);
+      view.hidden = !active;
+    });
+
+    document.querySelectorAll('[data-sa-tab]').forEach(button => {
+      const active = button.dataset.saTab === 'patrol';
+      button.classList.toggle('active', active);
+      if (active) {
+        button.setAttribute('aria-current', 'page');
+      } else {
+        button.removeAttribute('aria-current');
+      }
+    });
+
+    const pulangButton = document.getElementById('saPulangButton');
+    if (pulangButton) {
+      pulangButton.hidden = true;
+      pulangButton.setAttribute('aria-hidden', 'true');
+    }
+
+    syncPatrolIdentityBeta1_();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function bindPatrolNavigationBeta1_() {
+    document.addEventListener('click', event => {
+      const button = event.target && event.target.closest
+        ? event.target.closest('[data-sa-tab="patrol"]')
+        : null;
+
+      if (!button) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openPatrolBeta1_();
+    }, true);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindPatrolNavigationBeta1_, { once: true });
+  } else {
+    bindPatrolNavigationBeta1_();
+  }
+})();
+</script>
+
+<!-- ============================================================
+     GTT v1.0.0-Beta.1 — HOME HERO UI PATCH 001
+     SCOPE:
+     1. Foto profil Beranda 48 x 64 px
+     2. Isi identitas Hero rata kiri
+     3. Tidak mengubah fungsi / ID / JavaScript existing
+     ============================================================ -->
+
+<style>
+
+/* ============================================================
+   HOME HERO — PHOTO SIZE
+   Override variable existing secara additive.
+   ============================================================ */
+
+#saDashboardPage {
+  --gtt-rebuild-photo-w: 48px;
+  --gtt-rebuild-photo-h: 64px;
+}
+
+
+/* ============================================================
+   HERO BERANDA — LEFT AREA
+   Foto + identitas pengguna.
+   ============================================================ */
+
+#saDashboardPage #saHomeView .gtt-profile-left {
+  display: grid !important;
+
+  grid-template-columns:
+    var(--gtt-rebuild-photo-w)
+    minmax(0, 1fr) !important;
+
+  align-items: center !important;
+  justify-items: start !important;
+
+  gap: var(--gtt-rebuild-inline-gap) !important;
+
+  min-width: 0 !important;
+}
+
+
+/* ============================================================
+   FRAME FOTO PROFIL
+   Ukuran final: 48 x 64 px.
+   ============================================================ */
+
+#saDashboardPage #saHomeView .gtt-profile-photo-frame {
+  width: 48px !important;
+  height: 64px !important;
+
+  flex: 0 0 48px !important;
+
+  overflow: hidden !important;
+
+  border-radius: 8px !important;
+
+  object-fit: cover !important;
+}
+
+
+/* Foto existing tetap menggunakan fungsi existing. */
+
+#saDashboardPage #saHomeView .gtt-profile-photo {
+  display: block !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+
+/* ============================================================
+   IDENTITAS USER — RATA KIRI
+   ============================================================ */
+
+#saDashboardPage #saHomeView .dashboard-profile {
+  display: flex !important;
+  flex-direction: column !important;
+
+  align-items: flex-start !important;
+  justify-content: center !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  text-align: left !important;
+}
+
+
+/* Selamat Datang */
+
+#saDashboardPage #saHomeView .welcome-label {
+  width: 100% !important;
+
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+
+  text-align: left !important;
+}
+
+
+/* Nama pengguna */
+
+#saDashboardPage #saHomeView .dashboard-profile h2 {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+
+  text-align: left !important;
+}
+
+
+/* Jabatan · Outlet */
+
+#saDashboardPage #saHomeView .dashboard-profile > p {
+  width: 100% !important;
+
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+
+  text-align: left !important;
+}
+
+
+/* Operasional hari ini • Status */
+
+#saDashboardPage #saHomeView .profile-meta {
+  width: 100% !important;
+
+  display: flex !important;
+
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  flex-wrap: wrap !important;
+
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+
+  text-align: left !important;
+}
+
+
+/* ============================================================
+   JAM DIGITAL
+   Sengaja TIDAK dipindahkan.
+   Tetap berada di sisi kanan Hero.
+   ============================================================ */
+
+#saDashboardPage #saHomeView .dashboard-live-clock {
+  justify-self: end !important;
+  text-align: right !important;
+}
+
+
+/* ============================================================
+   MOBILE SAFETY
+   Tetap responsif pada HP kecil.
+   ============================================================ */
+
+@media (max-width: 360px) {
+
+  #saDashboardPage {
+    --gtt-rebuild-photo-w: 48px;
+    --gtt-rebuild-photo-h: 64px;
+  }
+
+  #saDashboardPage #saHomeView .gtt-profile-photo-frame {
+    width: 48px !important;
+    height: 64px !important;
+  }
+
+}
+
+</style>
+
+<!-- ============================================================
+     GTT v1.0.0-Beta.2 — SA DAILY ACTIVITY
+     APPEND-ONLY FRONTEND PATCH
+
+     CARA PASANG:
+     Paste SELURUH isi file ini di PALING BAWAH file existing:
+     GTT_BETA1_PATROL_UI_PATCH.html
+
+     JANGAN hapus / ubah kode existing di atasnya.
+     ============================================================ -->
+
+<style>
+/* ============================================================
+   GTT BETA.1 — SALES ADVISOR ACTIVITY UI
+   Mobile-First • Responsive • 2 module / row • gap 4px
+   Semua class baru memakai prefix gtt-act-* agar terisolasi.
+   ============================================================ */
+
+#gttActWorkspace {
+  --gtt-act-gap: 4px;
+  --gtt-act-blue: #0b4b97;
+  --gtt-act-blue-2: #1886df;
+  --gtt-act-red: #e40046;
+  --gtt-act-green: #15985b;
+  --gtt-act-amber: #a86400;
+  --gtt-act-text: #17243b;
+  --gtt-act-muted: #69758a;
+  --gtt-act-border: #dbe3ef;
+  --gtt-act-soft: #f7f9fc;
+  --gtt-act-radius: 12px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 var(--gtt-act-gap);
+}
+
+#gttActWorkspace,
+#gttActWorkspace * {
+  box-sizing: border-box;
+}
+
+.gtt-act-hidden {
+  display: none !important;
+}
+
+.gtt-act-section {
+  margin: 0 0 var(--gtt-act-gap);
+  padding: 10px;
+  border: 1px solid var(--gtt-act-border);
+  border-radius: var(--gtt-act-radius);
+  background: #fff;
+  min-width: 0;
+}
+
+.gtt-act-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.gtt-act-section-title span {
+  display: block;
+  color: var(--gtt-act-blue);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.gtt-act-section-title strong {
+  color: var(--gtt-act-text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.gtt-act-form-grid,
+.gtt-act-info-grid,
+.gtt-act-active-grid,
+.gtt-act-approval-summary-grid,
+.gtt-act-status-version-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gtt-act-gap);
+  min-width: 0;
+}
+
+.gtt-act-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 5px;
+}
+
+.gtt-act-field > span,
+.gtt-act-mini-label {
+  color: var(--gtt-act-muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.gtt-act-field select,
+.gtt-act-field input,
+.gtt-act-field textarea,
+.gtt-act-route-select,
+.gtt-act-route-other,
+.gtt-act-inline-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #d6dfec;
+  border-radius: 10px;
+  background: #f9fbfe;
+  color: var(--gtt-act-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  outline: none;
+  padding: 9px 10px;
+}
+
+.gtt-act-field textarea {
+  resize: vertical;
+  min-height: 82px;
+  line-height: 1.35;
+}
+
+.gtt-act-field select:focus,
+.gtt-act-field input:focus,
+.gtt-act-field textarea:focus,
+.gtt-act-route-select:focus,
+.gtt-act-route-other:focus,
+.gtt-act-inline-select:focus {
+  border-color: #2e84dd;
+  box-shadow: 0 0 0 2px rgba(46, 132, 221, .12);
+}
+
+.gtt-act-span-2 {
+  grid-column: 1 / -1;
+}
+
+.gtt-act-route-wrap {
+  margin: 0 0 8px;
+}
+
+.gtt-act-route-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 34px;
+  gap: var(--gtt-act-gap);
+  align-items: start;
+  margin-bottom: var(--gtt-act-gap);
+  min-width: 0;
+}
+
+.gtt-act-route-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--gtt-act-blue-2), var(--gtt-act-blue));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.gtt-act-route-control {
+  display: grid;
+  gap: var(--gtt-act-gap);
+  min-width: 0;
+}
+
+.gtt-act-remove-route {
+  min-height: 42px;
+  border: 1px solid #efc7d3;
+  border-radius: 9px;
+  background: #fff4f7;
+  color: #bd123f;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.gtt-act-add-route {
+  width: 100%;
+  min-height: 40px;
+  margin: 2px 0 0;
+  border: 1px dashed #9cb9dc;
+  border-radius: 10px;
+  background: #f4f8ff;
+  color: var(--gtt-act-blue);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.gtt-act-button-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gtt-act-gap);
+  margin-top: 8px;
+}
+
+.gtt-act-button-row.gtt-act-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gtt-act-btn {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 11px;
+  padding: 9px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.15;
+  cursor: pointer;
+}
+
+.gtt-act-btn:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+.gtt-act-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--gtt-act-blue-2), var(--gtt-act-blue));
+}
+
+.gtt-act-btn-danger {
+  color: #fff;
+  background: linear-gradient(135deg, #ec1551, #b90d3a);
+}
+
+.gtt-act-btn-secondary {
+  color: var(--gtt-act-blue);
+  background: #edf5ff;
+  border: 1px solid #c7d9ef;
+}
+
+.gtt-act-btn-neutral {
+  color: #4d596c;
+  background: #f1f4f8;
+  border: 1px solid #dce3ed;
+}
+
+.gtt-act-status-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gtt-act-gap);
+  margin-bottom: var(--gtt-act-gap);
+}
+
+.gtt-act-status-cell,
+.gtt-act-info-card {
+  min-width: 0;
+  border: 1px solid var(--gtt-act-border);
+  border-radius: 10px;
+  background: var(--gtt-act-soft);
+  padding: 9px;
+}
+
+.gtt-act-status-cell span,
+.gtt-act-info-card > span,
+.gtt-act-info-title {
+  display: block;
+  color: var(--gtt-act-muted);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.gtt-act-status-cell strong,
+.gtt-act-info-card > strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--gtt-act-blue);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gtt-act-info-grid {
+  margin: 0 0 var(--gtt-act-gap);
+  align-items: stretch;
+}
+
+.gtt-act-info-card {
+  background: #fff;
+  min-height: 118px;
+  border-top: 3px solid var(--gtt-act-blue);
+}
+
+.gtt-act-info-card.gtt-act-accent-red {
+  border-top-color: var(--gtt-act-red);
+}
+
+.gtt-act-info-card.gtt-act-accent-green {
+  border-top-color: var(--gtt-act-green);
+}
+
+.gtt-act-info-card.gtt-act-accent-amber {
+  border-top-color: #d98a00;
+}
+
+.gtt-act-info-title {
+  color: var(--gtt-act-blue);
+  margin-bottom: 6px;
+}
+
+.gtt-act-list {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.gtt-act-list-item {
+  padding: 6px;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  background: #fafcff;
+  min-width: 0;
+}
+
+.gtt-act-list-item strong,
+.gtt-act-list-item span,
+.gtt-act-list-item small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.gtt-act-list-item strong {
+  color: var(--gtt-act-text);
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.gtt-act-list-item span {
+  margin-top: 2px;
+  color: var(--gtt-act-blue);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.gtt-act-list-item small {
+  margin-top: 2px;
+  color: var(--gtt-act-muted);
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+.gtt-act-empty {
+  color: #8994a7;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.gtt-act-route-display {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.gtt-act-route-display span {
+  display: block;
+  color: var(--gtt-act-blue);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gtt-act-approval-item {
+  padding: 9px;
+  border: 1px solid #dce5f1;
+  border-radius: 10px;
+  background: #f9fbfe;
+  margin-bottom: var(--gtt-act-gap);
+}
+
+.gtt-act-approval-item:last-child {
+  margin-bottom: 0;
+}
+
+.gtt-act-approval-item h4 {
+  margin: 0 0 4px;
+  color: var(--gtt-act-text);
+  font-size: 12px;
+}
+
+.gtt-act-approval-item p {
+  margin: 2px 0;
+  color: var(--gtt-act-muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.gtt-act-approval-target {
+  margin-top: 5px !important;
+  color: var(--gtt-act-blue) !important;
+  font-weight: 900;
+}
+
+.gtt-act-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.gtt-act-badge-pending {
+  background: #fff5df;
+  color: #976000;
+}
+
+.gtt-act-badge-approved {
+  background: #e9f8f0;
+  color: #087346;
+}
+
+.gtt-act-badge-active {
+  background: #e9f3ff;
+  color: var(--gtt-act-blue);
+}
+
+.gtt-act-note {
+  margin: 7px 0 0;
+  padding: 7px;
+  border-radius: 8px;
+  background: #f4f7fb;
+  color: var(--gtt-act-muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+/* Beta.2 — Ringkasan TL PUBLIC per outlet, full-width, rata kiri, mobile-first */
+.gtt-act-summary-section {
+  margin: 0 0 var(--gtt-act-gap);
+  padding: 10px;
+  text-align: left;
+}
+
+.gtt-act-summary-head {
+  display: block;
+  margin: 0 0 8px;
+  text-align: left;
+}
+
+.gtt-act-summary-head span {
+  display: block;
+  color: var(--gtt-act-blue);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.gtt-act-summary-head strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--gtt-act-text);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.gtt-act-summary-table-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--gtt-act-border);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.gtt-act-summary-table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+}
+
+.gtt-act-summary-table th,
+.gtt-act-summary-table td {
+  padding: 7px 5px;
+  border-bottom: 1px solid #e8edf4;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.gtt-act-summary-table th {
+  background: #f4f8fd;
+  color: var(--gtt-act-muted);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.gtt-act-summary-table td {
+  color: var(--gtt-act-text);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.gtt-act-summary-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.gtt-act-summary-table th:nth-child(1),
+.gtt-act-summary-table td:nth-child(1) { width: 34%; }
+.gtt-act-summary-table th:nth-child(2),
+.gtt-act-summary-table td:nth-child(2) { width: 12%; }
+.gtt-act-summary-table th:nth-child(3),
+.gtt-act-summary-table td:nth-child(3) { width: 32%; }
+.gtt-act-summary-table th:nth-child(4),
+.gtt-act-summary-table td:nth-child(4) { width: 22%; }
+
+.gtt-act-summary-name {
+  font-weight: 900;
+}
+
+.gtt-act-summary-route {
+  color: var(--gtt-act-blue);
+  font-weight: 850;
+}
+
+.gtt-act-summary-duration-active {
+  color: var(--gtt-act-green);
+  font-weight: 900;
+}
+
+.gtt-act-summary-empty {
+  padding: 10px 8px;
+  color: #8994a7;
+  font-size: 9px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+@media (min-width: 540px) {
+  .gtt-act-summary-table th,
+  .gtt-act-summary-table td {
+    padding: 8px 7px;
+  }
+
+  .gtt-act-summary-table th { font-size: 9px; }
+  .gtt-act-summary-table td { font-size: 10px; }
+}
+
+/* Status: PIN kiri + Version kanan */
+.gtt-act-status-version-grid {
+  margin-top: 0;
+  border-top: 1px solid #e0e7f0;
+}
+
+.gtt-act-status-version-grid .gtt-status-pin-row {
+  min-width: 0;
+  margin: 0 !important;
+  border-top: 0 !important;
+  border-right: 1px solid #e0e7f0;
+  padding-right: 8px !important;
+}
+
+.gtt-act-version-cell {
+  min-width: 0;
+  padding: 9px 7px;
+}
+
+.gtt-act-version-cell span {
+  display: block;
+  color: #7b8496;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.gtt-act-version-cell strong {
+  display: block;
+  margin-top: 4px;
+  color: #17243b;
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+/* Home: rute TL aktif dalam card existing */
+#gttActHomeRouteValue {
+  display: grid;
+  gap: 1px;
+  margin-top: 3px;
+  text-align: left;
+}
+
+#gttActHomeRouteValue span {
+  display: block;
+  font-size: 9px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: #0b4b97;
+  overflow-wrap: anywhere;
+}
+
+/* Modal konfirmasi internal Activity */
+.gtt-act-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(10, 25, 50, .48);
+}
+
+.gtt-act-modal[hidden] {
+  display: none !important;
+}
+
+.gtt-act-modal-card {
+  width: min(92vw, 380px);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .22);
+  padding: 14px;
+}
+
+.gtt-act-modal-card h3 {
+  margin: 0 0 6px;
+  color: #16335d;
+  font-size: 15px;
+}
+
+.gtt-act-modal-card p {
+  margin: 0;
+  color: #566378;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.gtt-act-modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 12px;
+}
+
+/* Mobile-first tetap 2 kolom; layar kecil dipadatkan, tidak ditumpuk. */
+@media (max-width: 360px) {
+  .gtt-act-section { padding: 8px; }
+  .gtt-act-info-card { padding: 7px; min-height: 108px; }
+  .gtt-act-btn { font-size: 10px; padding-inline: 5px; }
+  .gtt-act-status-cell strong,
+  .gtt-act-info-card > strong { font-size: 11px; }
+  .gtt-act-list-item { padding: 5px; }
+  .gtt-act-list-item strong { font-size: 9px; }
+  .gtt-act-list-item span { font-size: 8px; }
+}
+
+@media (min-width: 640px) {
+  .gtt-act-section { padding: 12px; }
+  .gtt-act-info-card { min-height: 128px; }
+  .gtt-act-list-item strong { font-size: 11px; }
+  .gtt-act-list-item span { font-size: 10px; }
+}
+</style>
+
+<script>
+/* ============================================================
+   GTT v1.0.0-Beta.2 — SA DAILY ACTIVITY
+   Additive isolated runtime module.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  const ACT_VERSION = 'v1.0.0-Beta.2';
+  const MAX_ROUTE_STOPS = 10;
+  const REFRESH_VISIBLE_MS = 30000;
+  const REFRESH_PENDING_MS = 8000;
+
+  const act = {
+    initialized: false,
+    busy: false,
+    data: null,
+    fetchedAtMs: 0,
+    serverOffsetMs: 0,
+    lastPin: '',
+    lastAttemptPin: '',
+    lastAttemptAtMs: 0,
+    bootstrapInFlight: false,
+    bootstrapError: '',
+    bootstrapFailureCount: 0,
+    editMode: false,
+    pollingId: null,
+    sessionWatchId: null,
+    tickId: null,
+    homeObserversBound: false,
+    modalResolve: null
+  };
+
+  function esc_(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function normalizeServerResult_(result) {
+    if (typeof result !== 'string') return result;
+    const text = result.trim();
+    if (!text) return null;
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      throw new Error('Respons Activity bukan JSON valid.');
+    }
+  }
+
+  function api_(method, args) {
+    return new Promise((resolve, reject) => {
+      if (
+        typeof google === 'undefined' ||
+        !google.script ||
+        !google.script.run
+      ) {
+        reject(new Error('GTT harus dibuka dari URL Web App.'));
+        return;
+      }
+
+      const runner = google.script.run
+        .withSuccessHandler(result => {
+          try {
+            resolve(normalizeServerResult_(result));
+          } catch (error) {
+            reject(error);
+          }
+        })
+        .withFailureHandler(error => {
+          const message = error && error.message ? error.message : 'Komunikasi Activity dengan server gagal.';
+          reject(new Error(message));
+        });
+
+      if (!runner[method]) {
+        reject(new Error('API ' + method + ' tidak tersedia.'));
+        return;
+      }
+
+      runner[method](...(args || []));
+    });
+  }
+
+  function currentPin_() {
+    try {
+      return String(state && state.pin || '').trim();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function currentUser_() {
+    try {
+      return state && state.user ? state.user : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function feedback_(message, type) {
+    const text = String(message || '').trim();
+    if (!text) return;
+
+    try {
+      if (typeof showSaActionFeedback === 'function') {
+        showSaActionFeedback(text, type || 'info');
+        return;
+      }
+    } catch (ignore) {}
+
+    if (type === 'error' || type === 'warning') {
+      console.warn(text);
+    } else {
+      console.log(text);
+    }
+  }
+
+  function setBusy_(busy) {
+    act.busy = Boolean(busy);
+    document.querySelectorAll('#gttActWorkspace button, #gttActWorkspace select, #gttActWorkspace textarea, #gttActWorkspace input')
+      .forEach(el => {
+        if (el.dataset.keepEnabled === 'true') return;
+        el.disabled = act.busy;
+      });
+  }
+
+  function ensureWorkspace_() {
+    if (document.getElementById('gttActWorkspace')) return;
+    const view = document.getElementById('saOutsideDutyView');
+    if (!view) return;
+
+    const legacy = view.querySelector('.outside-duty-module');
+    if (legacy) {
+      legacy.hidden = true;
+      legacy.setAttribute('aria-hidden', 'true');
+    }
+
+    const workspace = document.createElement('div');
+    workspace.id = 'gttActWorkspace';
+    workspace.innerHTML = `
+      <section id="gttActMainSection" class="gtt-act-section" aria-live="polite">
+        <div class="gtt-act-status-strip">
+          <div class="gtt-act-status-cell"><span>Status Activity</span><strong>Menunggu sesi...</strong></div>
+          <div class="gtt-act-status-cell"><span>GTT Version</span><strong>${esc_(ACT_VERSION)}</strong></div>
+        </div>
+      </section>
+      <section id="gttActApprovalQueue" class="gtt-act-section" hidden></section>
+      <div id="gttActInfoGrid" class="gtt-act-info-grid"></div>
+      <section id="gttActOutletSummary" class="gtt-act-section gtt-act-summary-section" aria-live="polite"></section>
+
+      <div id="gttActModal" class="gtt-act-modal" hidden aria-hidden="true">
+        <div class="gtt-act-modal-card" role="dialog" aria-modal="true" aria-labelledby="gttActModalTitle">
+          <h3 id="gttActModalTitle">Konfirmasi</h3>
+          <p id="gttActModalMessage"></p>
+          <div class="gtt-act-modal-actions">
+            <button id="gttActModalCancel" class="gtt-act-btn gtt-act-btn-neutral" type="button">BATAL</button>
+            <button id="gttActModalOk" class="gtt-act-btn gtt-act-btn-primary" type="button">YA</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (legacy) {
+      view.insertBefore(workspace, legacy);
+    } else {
+      const homeButton = view.querySelector('.menu-home-button');
+      view.insertBefore(workspace, homeButton || null);
+    }
+
+    bindWorkspaceEvents_();
+  }
+
+  function ensureVersionModule_() {
+    const pinRow = document.querySelector('#saProfileView .gtt-status-pin-row');
+    if (!pinRow || document.getElementById('gttActVersionCell')) return;
+
+    const parent = pinRow.parentNode;
+    if (!parent) return;
+
+    const grid = document.createElement('div');
+    grid.className = 'gtt-act-status-version-grid';
+    grid.id = 'gttActStatusVersionGrid';
+    parent.insertBefore(grid, pinRow);
+    grid.appendChild(pinRow);
+
+    const versionCell = document.createElement('div');
+    versionCell.id = 'gttActVersionCell';
+    versionCell.className = 'gtt-act-version-cell';
+    versionCell.innerHTML = `<span>GTT VERSION</span><strong>${esc_(ACT_VERSION)}</strong>`;
+    grid.appendChild(versionCell);
+
+    const hiddenVersion = document.getElementById('profileAppVersion');
+    if (hiddenVersion) hiddenVersion.textContent = ACT_VERSION;
+  }
+
+  function bindWorkspaceEvents_() {
+    const workspace = document.getElementById('gttActWorkspace');
+    if (!workspace || workspace.dataset.bound === 'true') return;
+    workspace.dataset.bound = 'true';
+
+    workspace.addEventListener('click', async event => {
+      const button = event.target.closest('[data-gtt-act]');
+      if (!button || act.busy) return;
+      const action = button.dataset.gttAct;
+
+      try {
+        if (action === 'add-route') addRouteRow_();
+        if (action === 'remove-route') removeRouteRow_(button);
+        if (action === 'submit-request') await submitRequest_();
+        if (action === 'start-task') await startTask_();
+        if (action === 'finish-task') await finishTask_();
+        if (action === 'cancel-task') await cancelTask_();
+        if (action === 'edit-task') beginEditCurrentTask_();
+        if (action === 'cancel-edit') { act.editMode = false; renderAll_(); }
+        if (action === 'update-request') await updateRequest_();
+        if (action === 'change-approver') await changeApprover_(button);
+        if (action === 'approve') await approveRequest_(button.dataset.taskId);
+        if (action === 'reject') await rejectRequest_(button.dataset.taskId);
+        if (action === 'refresh') await refresh_(true);
+      } catch (error) {
+        feedback_(error && error.message || 'Proses Activity gagal.', 'error');
+      }
+    });
+
+    workspace.addEventListener('change', async event => {
+      const select = event.target.closest('.gtt-act-route-select');
+      if (!select) return;
+      await handleRouteChange_(select);
+    });
+
+    const modal = document.getElementById('gttActModal');
+    const ok = document.getElementById('gttActModalOk');
+    const cancel = document.getElementById('gttActModalCancel');
+    if (ok) ok.addEventListener('click', () => closeConfirm_(true));
+    if (cancel) cancel.addEventListener('click', () => closeConfirm_(false));
+    if (modal) {
+      modal.addEventListener('click', event => {
+        if (event.target === modal) closeConfirm_(false);
+      });
+    }
+  }
+
+  function confirm_(title, message, okText) {
+    return new Promise(resolve => {
+      const modal = document.getElementById('gttActModal');
+      const titleEl = document.getElementById('gttActModalTitle');
+      const messageEl = document.getElementById('gttActModalMessage');
+      const ok = document.getElementById('gttActModalOk');
+      if (!modal || !titleEl || !messageEl || !ok) {
+        resolve(window.confirm(message));
+        return;
+      }
+      act.modalResolve = resolve;
+      titleEl.textContent = title || 'Konfirmasi';
+      messageEl.textContent = message || '';
+      ok.textContent = okText || 'YA';
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      window.setTimeout(() => ok.focus(), 0);
+    });
+  }
+
+  function closeConfirm_(value) {
+    const modal = document.getElementById('gttActModal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    const resolver = act.modalResolve;
+    act.modalResolve = null;
+    if (resolver) resolver(Boolean(value));
+  }
+
+  function renderBootstrapState_(mode, message) {
+    ensureWorkspace_();
+    ensureVersionModule_();
+    const host = document.getElementById('gttActMainSection');
+    const approval = document.getElementById('gttActApprovalQueue');
+    const info = document.getElementById('gttActInfoGrid');
+    if (!host) return;
+
+    if (approval) { approval.hidden = true; approval.innerHTML = ''; }
+    if (info) info.innerHTML = '';
+
+    const isError = mode === 'error';
+    host.innerHTML = `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>Sales Advisor Activity</span>
+          <strong>${isError ? 'Data belum dapat dimuat' : 'Memuat data Activity...'}</strong>
+        </div>
+        <span class="gtt-act-badge ${isError ? 'gtt-act-badge-pending' : 'gtt-act-badge-active'}">${isError ? 'RETRY' : 'LOADING'}</span>
+      </div>
+      <div class="gtt-act-status-strip">
+        <div class="gtt-act-status-cell">
+          <span>Status Activity</span>
+          <strong>${isError ? 'Gagal memuat' : 'Menghubungkan server'}</strong>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>GTT Version</span>
+          <strong>${esc_(ACT_VERSION)}</strong>
+        </div>
+      </div>
+      <p class="gtt-act-note">${esc_(message || (isError ? 'Tekan COBA LAGI untuk memuat ulang.' : 'Mohon tunggu...'))}</p>
+      ${isError ? '<div class="gtt-act-button-row gtt-act-single"><button class="gtt-act-btn gtt-act-btn-primary" type="button" data-gtt-act="refresh">COBA LAGI</button></div>' : ''}
+    `;
+  }
+
+  function stopPolling_() {
+    if (act.pollingId) {
+      window.clearInterval(act.pollingId);
+      act.pollingId = null;
+    }
+  }
+
+  async function refresh_(manual) {
+    const pin = currentPin_();
+    if (!pin || act.busy || act.bootstrapInFlight) return false;
+
+    act.bootstrapInFlight = true;
+    act.lastAttemptPin = pin;
+    act.lastAttemptAtMs = Date.now();
+    if (!act.data) renderBootstrapState_('loading', 'Membaca data pengguna, Tugas Luar, approval, dan aktivitas outlet.');
+    if (manual) setBusy_(true);
+
+    try {
+      const response = await api_('apiGttActBootstrap', [pin]);
+      if (!response || response.success !== true || !response.data) {
+        throw new Error(response && response.message || 'Data Sales Advisor Activity gagal dimuat.');
+      }
+
+      act.bootstrapError = '';
+      act.bootstrapFailureCount = 0;
+      applyData_(response.data);
+      return true;
+    } catch (error) {
+      const message = error && error.message ? error.message : 'Data Sales Advisor Activity gagal dimuat.';
+      act.bootstrapError = message;
+      act.bootstrapFailureCount += 1;
+      act.lastPin = pin; // hentikan loop bootstrap 1,5 detik; retry dilakukan manual/ketika sesi berubah.
+      act.data = null;
+      stopPolling_();
+      renderBootstrapState_('error', message);
+      console.error('[GTT ACTIVITY BETA.2] bootstrap gagal:', error);
+      if (manual) feedback_(message, 'error');
+      return false;
+    } finally {
+      act.bootstrapInFlight = false;
+      if (manual) setBusy_(false);
+    }
+  }
+
+  function applyData_(data) {
+    act.data = data || {};
+    act.fetchedAtMs = Date.now();
+    act.serverOffsetMs = Number(data && data.serverNowMs || Date.now()) - Date.now();
+    act.lastPin = currentPin_();
+    act.lastAttemptPin = act.lastPin;
+    act.bootstrapError = '';
+    renderAll_();
+    syncHomeMonitoring_();
+    configurePolling_();
+  }
+
+  function renderAll_() {
+    if (!act.data) return;
+    ensureWorkspace_();
+    ensureVersionModule_();
+    renderMain_();
+    renderApprovalQueue_();
+    renderInfoGrid_();
+    renderOutletSummary_();
+    syncHeroIdentity_();
+    syncHomeMonitoring_();
+  }
+
+  function syncHeroIdentity_() {
+    const data = act.data || {};
+    const user = data.user || {};
+    const name = document.getElementById('outsideDutyEmployeeName');
+    if (name && user.nama) name.textContent = user.nama;
+  }
+
+  function renderMain_() {
+    const host = document.getElementById('gttActMainSection');
+    if (!host || !act.data) return;
+    const current = act.data.currentTask;
+
+    if (act.editMode && current && current.status !== 'IN_PROGRESS') {
+      host.innerHTML = buildFormHtml_(current, true);
+      hydrateRouteRows_(current.route || []);
+      selectApprover_(current.approverId || '');
+      const purpose = document.getElementById('gttActPurpose');
+      if (purpose) purpose.value = current.purpose || '';
+      return;
+    }
+
+    if (!current) {
+      host.innerHTML = buildFormHtml_(null, false);
+      hydrateRouteRows_([]);
+      return;
+    }
+
+    if (current.status === 'PENDING_APPROVAL') {
+      host.innerHTML = buildPendingHtml_(current);
+      populatePendingApprover_(current);
+      return;
+    }
+
+    if (current.status === 'APPROVED') {
+      host.innerHTML = buildApprovedHtml_(current);
+      return;
+    }
+
+    if (current.status === 'IN_PROGRESS') {
+      host.innerHTML = buildActiveHtml_(current);
+      updateLiveTimers_();
+      return;
+    }
+
+    host.innerHTML = buildFormHtml_(null, false);
+    hydrateRouteRows_([]);
+  }
+
+  function buildFormHtml_(task, editing) {
+    const user = act.data && act.data.user || {};
+    return `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>${editing ? 'Perbaiki Permintaan' : 'Tugas Luar Baru'}</span>
+          <strong>${editing ? 'Perubahan wajib approval ulang' : 'Buat Tugas Luar'}</strong>
+        </div>
+        <button class="gtt-act-btn gtt-act-btn-neutral" style="width:auto;min-height:34px" type="button" data-gtt-act="refresh">↻</button>
+      </div>
+
+      <div class="gtt-act-status-strip">
+        <div class="gtt-act-status-cell">
+          <span>Outlet Asal</span>
+          <strong>${esc_(user.outlet || '—')}</strong>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Geofence</span>
+          <strong>Mulai &amp; Selesai di ${esc_(user.outlet || 'Outlet')}</strong>
+        </div>
+      </div>
+
+      <div class="gtt-act-route-wrap">
+        <div class="gtt-act-mini-label" style="margin-bottom:5px">Rute / Tujuan Berurutan</div>
+        <div id="gttActRouteRows"></div>
+        <button class="gtt-act-add-route" type="button" data-gtt-act="add-route">+ Tambah Tujuan</button>
+      </div>
+
+      <div class="gtt-act-form-grid">
+        <label class="gtt-act-field gtt-act-span-2">
+          <span>Keperluan</span>
+          <textarea id="gttActPurpose" maxlength="250" placeholder="Tulis keperluan Tugas Luar"></textarea>
+        </label>
+        <label class="gtt-act-field gtt-act-span-2">
+          <span>Ajukan Persetujuan Kepada</span>
+          <select id="gttActApproverSelect"></select>
+        </label>
+      </div>
+
+      <p class="gtt-act-note">Memilih nama SL/SPV/Manager belum berarti disetujui. Approval dilakukan dari HP dan akun GTT approver sendiri.</p>
+
+      <div class="gtt-act-button-row ${editing ? '' : 'gtt-act-single'}">
+        ${editing ? '<button class="gtt-act-btn gtt-act-btn-neutral" type="button" data-gtt-act="cancel-edit">BATAL EDIT</button>' : ''}
+        <button class="gtt-act-btn gtt-act-btn-primary" type="button" data-gtt-act="${editing ? 'update-request' : 'submit-request'}">
+          ${editing ? 'SIMPAN & KIRIM ULANG' : 'KIRIM PERSETUJUAN'}
+        </button>
+      </div>
+    `;
+  }
+
+  function buildPendingHtml_(task) {
+    return `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>Persetujuan Tugas Luar</span>
+          <strong>Menunggu Persetujuan</strong>
+        </div>
+        <span class="gtt-act-badge gtt-act-badge-pending">PENDING</span>
+      </div>
+
+      <div class="gtt-act-approval-summary-grid">
+        <div class="gtt-act-status-cell">
+          <span>Rute</span>
+          <div class="gtt-act-route-display">${routeHtml_(task.route)}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Approver</span>
+          <strong>${esc_(task.approverName || '—')}</strong>
+          <div class="gtt-act-mini-label">${esc_(task.approverPosition || '')}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Keperluan</span>
+          <strong>${esc_(task.purpose || '—')}</strong>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Dikirim</span>
+          <strong>${esc_(shortDateTime_(task.requestedAtText) || '—')}</strong>
+        </div>
+      </div>
+
+      <label class="gtt-act-field" style="margin-top:8px">
+        <span>Ganti Approver</span>
+        <select id="gttActPendingApprover" class="gtt-act-inline-select"></select>
+      </label>
+
+      <div class="gtt-act-button-row">
+        <button class="gtt-act-btn gtt-act-btn-secondary" type="button" data-gtt-act="change-approver">GANTI APPROVER</button>
+        <button class="gtt-act-btn gtt-act-btn-neutral" type="button" data-gtt-act="edit-task">UBAH DATA</button>
+      </div>
+      <div class="gtt-act-button-row gtt-act-single">
+        <button class="gtt-act-btn gtt-act-btn-danger" type="button" data-gtt-act="cancel-task">BATALKAN PERMINTAAN</button>
+      </div>
+    `;
+  }
+
+  function buildApprovedHtml_(task) {
+    const no = task.taskNo ? 'TUGAS LUAR ' + task.taskNo : 'TUGAS LUAR';
+    return `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>${esc_(no)}</span>
+          <strong>Persetujuan Diterima</strong>
+        </div>
+        <span class="gtt-act-badge gtt-act-badge-approved">APPROVED</span>
+      </div>
+
+      <div class="gtt-act-approval-summary-grid">
+        <div class="gtt-act-status-cell">
+          <span>Rute</span>
+          <div class="gtt-act-route-display">${routeHtml_(task.route)}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Disetujui Oleh</span>
+          <strong>${esc_(task.approverName || '—')}</strong>
+          <div class="gtt-act-mini-label">${esc_(task.approverPosition || '')}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Keperluan</span>
+          <strong>${esc_(task.purpose || '—')}</strong>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Approval</span>
+          <strong>${esc_(shortDateTime_(task.approvedAtText) || 'Disetujui')}</strong>
+        </div>
+      </div>
+
+      <p class="gtt-act-note">Tombol Mulai melakukan validasi GPS. SA wajib berada di geofence outlet asal.</p>
+
+      <div class="gtt-act-button-row">
+        <button class="gtt-act-btn gtt-act-btn-neutral" type="button" data-gtt-act="edit-task">UBAH DATA</button>
+        <button class="gtt-act-btn gtt-act-btn-danger" type="button" data-gtt-act="cancel-task">BATALKAN</button>
+      </div>
+      <div class="gtt-act-button-row gtt-act-single">
+        <button class="gtt-act-btn gtt-act-btn-primary" type="button" data-gtt-act="start-task">MULAI TUGAS LUAR</button>
+      </div>
+    `;
+  }
+
+  function buildActiveHtml_(task) {
+    return `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>Tugas Luar ${esc_(task.taskNo || '')}</span>
+          <strong>Sedang Tugas Luar</strong>
+        </div>
+        <span class="gtt-act-badge gtt-act-badge-active">BERLANGSUNG</span>
+      </div>
+
+      <div class="gtt-act-active-grid">
+        <div class="gtt-act-status-cell">
+          <span>Rute Aktif</span>
+          <div class="gtt-act-route-display">${routeHtml_(task.route)}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Disetujui Oleh</span>
+          <strong>${esc_(task.approverName || '—')}</strong>
+          <div class="gtt-act-mini-label">${esc_(task.approverPosition || '')}</div>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Jam Keluar</span>
+          <strong>${esc_(task.startTime || '--:--:--')}</strong>
+        </div>
+        <div class="gtt-act-status-cell">
+          <span>Durasi</span>
+          <strong id="gttActCurrentDuration">00:00:00</strong>
+        </div>
+      </div>
+
+      <div class="gtt-act-status-cell" style="margin-top:4px">
+        <span>Keperluan</span>
+        <strong>${esc_(task.purpose || '—')}</strong>
+      </div>
+
+      <p class="gtt-act-note">Tugas Luar hanya dapat diselesaikan setelah SA kembali ke geofence outlet asal. Tugas Luar aktif tidak dapat dibatalkan sendiri.</p>
+
+      <div class="gtt-act-button-row gtt-act-single">
+        <button class="gtt-act-btn gtt-act-btn-primary" type="button" data-gtt-act="finish-task">SELESAI TUGAS LUAR</button>
+      </div>
+    `;
+  }
+
+  function renderApprovalQueue_() {
+    const host = document.getElementById('gttActApprovalQueue');
+    if (!host || !act.data) return;
+    const requests = Array.isArray(act.data.pendingApprovals) ? act.data.pendingApprovals : [];
+
+    if (!requests.length) {
+      host.hidden = true;
+      host.innerHTML = '';
+      return;
+    }
+
+    host.hidden = false;
+    host.innerHTML = `
+      <div class="gtt-act-section-title">
+        <div>
+          <span>Approval Outlet ${esc_(act.data.user && act.data.user.outlet || '')}</span>
+          <strong>Permintaan Pending (${requests.length})</strong>
+        </div>
+      </div>
+      ${requests.map(request => `
+        <article class="gtt-act-approval-item">
+          <h4>${esc_(request.nama || 'SA')}</h4>
+          <p><b>Rute:</b> ${esc_(request.routeLabel || '—')}</p>
+          <p><b>Keperluan:</b> ${esc_(request.purpose || '—')}</p>
+          <p class="gtt-act-approval-target">Menunggu: ${esc_(request.approverName || '—')} — ${esc_(request.approverPosition || '')}</p>
+          ${request.canAct ? `
+            <div class="gtt-act-button-row">
+              <button class="gtt-act-btn gtt-act-btn-danger" type="button" data-gtt-act="reject" data-task-id="${esc_(request.taskId)}">TOLAK</button>
+              <button class="gtt-act-btn gtt-act-btn-primary" type="button" data-gtt-act="approve" data-task-id="${esc_(request.taskId)}">SETUJUI</button>
+            </div>
+          ` : `
+            <div class="gtt-act-note">Bisa dilihat, tetapi approval hanya aktif pada akun approver yang dipilih.</div>
+          `}
+        </article>
+      `).join('')}
+    `;
+  }
+
+  function renderInfoGrid_() {
+    const host = document.getElementById('gttActInfoGrid');
+    if (!host || !act.data) return;
+    const current = act.data.currentTask;
+    const myToday = Array.isArray(act.data.myToday) ? act.data.myToday : [];
+    const team = act.data.team || {};
+
+    host.innerHTML = `
+      <section class="gtt-act-info-card gtt-act-accent-red">
+        <div class="gtt-act-info-title">Status TL Saya</div>
+        ${myStatusHtml_(current)}
+      </section>
+
+      <section class="gtt-act-info-card">
+        <div class="gtt-act-info-title">TL Saya Hari Ini</div>
+        ${myHistoryHtml_(myToday)}
+      </section>
+
+      <section class="gtt-act-info-card gtt-act-accent-green">
+        <div class="gtt-act-info-title">Tugas Luar Tim</div>
+        ${teamOutsideHtml_(team.outside || [])}
+      </section>
+
+      <section class="gtt-act-info-card gtt-act-accent-amber">
+        <div class="gtt-act-info-title">Break Tim Outlet</div>
+        ${teamBreakHtml_(team.break1 || [], team.break2 || [])}
+      </section>
+    `;
+    updateLiveTimers_();
+  }
+
+  function renderOutletSummary_() {
+    const host = document.getElementById('gttActOutletSummary');
+    if (!host || !act.data) return;
+
+    const user = act.data.user || {};
+    const team = act.data.team || {};
+    const rows = Array.isArray(team.tlToday) ? team.tlToday : [];
+    const outlet = user.outlet || '—';
+    const dateLabel = act.data.dateLabel || act.data.dateKey || '';
+
+    host.innerHTML = `
+      <div class="gtt-act-summary-head">
+        <span>Ringkasan TL — ${esc_(outlet)}</span>
+        <strong>${esc_(dateLabel)}</strong>
+      </div>
+      ${rows.length ? `
+        <div class="gtt-act-summary-table-wrap">
+          <table class="gtt-act-summary-table" aria-label="Ringkasan Tugas Luar ${esc_(outlet)} ${esc_(dateLabel)}">
+            <thead>
+              <tr>
+                <th scope="col">SA</th>
+                <th scope="col">TL</th>
+                <th scope="col">Tujuan</th>
+                <th scope="col">Durasi</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(item => {
+                const active = item.status === 'IN_PROGRESS';
+                const duration = active
+                  ? `<span class="gtt-act-summary-duration-active" data-gtt-act-live="summary" data-base-seconds="${Number(item.elapsedSeconds || 0)}">${esc_(formatMinutes_(item.elapsedSeconds || 0))}</span>`
+                  : `${Math.max(0, Number(item.durationMinutes || 0))} menit`;
+                return `
+                  <tr>
+                    <td class="gtt-act-summary-name">${esc_(item.nama || 'SA')}</td>
+                    <td>${esc_(item.taskNo || '—')}</td>
+                    <td class="gtt-act-summary-route">${esc_(item.routeLabel || '—')}</td>
+                    <td>${duration}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <div class="gtt-act-summary-empty">Belum ada Tugas Luar yang dimulai hari ini di outlet ${esc_(outlet)}.</div>
+      `}
+    `;
+
+    updateLiveTimers_();
+  }
+
+  function myStatusHtml_(task) {
+    if (!task) return '<div class="gtt-act-empty">Tidak ada Tugas Luar aktif/pending. Siap membuat tugas baru.</div>';
+
+    let label = task.status;
+    let detail = task.routeLabel || '—';
+    if (task.status === 'PENDING_APPROVAL') label = 'Menunggu Persetujuan';
+    if (task.status === 'APPROVED') label = `TL ${task.taskNo || ''} Disetujui`;
+    if (task.status === 'IN_PROGRESS') label = `TL ${task.taskNo || ''} Berlangsung`;
+
+    return `
+      <div class="gtt-act-list">
+        <div class="gtt-act-list-item">
+          <strong>${esc_(label)}</strong>
+          <span>${esc_(detail)}</span>
+          <small>${task.approverName ? 'Approver: ' + esc_(task.approverName) : ''}</small>
+        </div>
+      </div>
+    `;
+  }
+
+  function myHistoryHtml_(tasks) {
+    const items = (tasks || []).filter(task => Number(task.taskNo || 0) > 0);
+    if (!items.length) return '<div class="gtt-act-empty">Belum ada Tugas Luar yang mendapat nomor hari ini.</div>';
+
+    return `<div class="gtt-act-list">${items.map(task => {
+      const minutes = task.status === 'IN_PROGRESS'
+        ? liveMinutes_(task.elapsedSeconds || 0)
+        : Number(task.durationMinutes || 0);
+      const statusText = task.status === 'IN_PROGRESS'
+        ? 'Sedang berlangsung'
+        : task.status === 'COMPLETED'
+          ? `${minutes} menit`
+          : task.status === 'CANCELLED'
+            ? 'Dibatalkan'
+            : task.status === 'APPROVED'
+              ? 'Belum dimulai'
+              : task.status;
+
+      return `
+        <div class="gtt-act-list-item">
+          <strong>Tugas Luar ${esc_(task.taskNo)}</strong>
+          <span>${esc_(task.routeLabel || '—')}</span>
+          <small>${esc_(task.startTime || '--:--:--')} ${task.endTime ? '– ' + esc_(task.endTime) : ''} · ${esc_(statusText)}</small>
+        </div>
+      `;
+    }).join('')}</div>`;
+  }
+
+  function teamOutsideHtml_(items) {
+    if (!items.length) return '<div class="gtt-act-empty">Tidak ada SA outlet ini yang sedang Tugas Luar.</div>';
+    return `<div class="gtt-act-list">${items.map(item => `
+      <div class="gtt-act-list-item">
+        <strong>${esc_(item.nama || 'SA')}</strong>
+        <span>${esc_(item.routeLabel || '—')}</span>
+        <small data-gtt-act-live="outside" data-base-seconds="${Number(item.elapsedSeconds || 0)}">${esc_(formatMinutes_(item.elapsedSeconds || 0))}</small>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  function teamBreakHtml_(b1, b2) {
+    const rows = [];
+    (b1 || []).forEach(item => rows.push({ ...item, label: 'BREAK 1' }));
+    (b2 || []).forEach(item => rows.push({ ...item, label: 'BREAK 2' }));
+    if (!rows.length) return '<div class="gtt-act-empty">Tidak ada SA outlet ini yang sedang Break 1/2.</div>';
+
+    return `<div class="gtt-act-list">${rows.map(item => `
+      <div class="gtt-act-list-item">
+        <strong>${esc_(item.nama || 'SA')}</strong>
+        <span>${esc_(item.label)}</span>
+        <small data-gtt-act-live="break" data-base-seconds="${Number(item.elapsedSeconds || 0)}">${esc_(formatMinutes_(item.elapsedSeconds || 0))}</small>
+      </div>
+    `).join('')}</div>`;
+  }
+
+  function routeHtml_(route) {
+    const list = Array.isArray(route) ? route : [];
+    if (!list.length) return '<span>—</span>';
+    return list.map((item, index) => {
+      const name = item && item.type === 'OTHER'
+        ? item.name
+        : (item && (item.code || item.display || item.name));
+      return `<span>${index + 1}. ${esc_(name || '—')}</span>`;
+    }).join('');
+  }
+
+  function hydrateRouteRows_(route) {
+    const host = document.getElementById('gttActRouteRows');
+    if (!host) return;
+    host.innerHTML = '';
+    const list = Array.isArray(route) && route.length ? route : [null];
+    list.forEach(item => addRouteRow_(item));
+    populateFormApprovers_();
+  }
+
+  function addRouteRow_(item) {
+    const host = document.getElementById('gttActRouteRows');
+    if (!host) return;
+    const currentCount = host.querySelectorAll('.gtt-act-route-row').length;
+    if (currentCount >= MAX_ROUTE_STOPS) {
+      feedback_('Maksimal ' + MAX_ROUTE_STOPS + ' tujuan dalam satu Tugas Luar.', 'warning');
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'gtt-act-route-row';
+    row.innerHTML = `
+      <div class="gtt-act-route-number">${currentCount + 1}</div>
+      <div class="gtt-act-route-control">
+        <select class="gtt-act-route-select"></select>
+        <input class="gtt-act-route-other" type="text" maxlength="120" placeholder="Tulis lokasi tujuan" hidden>
+      </div>
+      <button class="gtt-act-remove-route" type="button" data-gtt-act="remove-route" aria-label="Hapus tujuan">×</button>
+    `;
+    host.appendChild(row);
+
+    const select = row.querySelector('.gtt-act-route-select');
+    populateDestinationSelect_(select);
+
+    if (item) {
+      if (item.type === 'OTHER') {
+        select.value = '__LAINNYA__';
+        const other = row.querySelector('.gtt-act-route-other');
+        other.hidden = false;
+        other.value = item.name || '';
+      } else {
+        select.value = item.code || '';
+      }
+    }
+
+    renumberRouteRows_();
+  }
+
+  function removeRouteRow_(button) {
+    const host = document.getElementById('gttActRouteRows');
+    const row = button && button.closest('.gtt-act-route-row');
+    if (!host || !row) return;
+    const rows = host.querySelectorAll('.gtt-act-route-row');
+    if (rows.length <= 1) {
+      const select = row.querySelector('.gtt-act-route-select');
+      const other = row.querySelector('.gtt-act-route-other');
+      if (select) select.value = '';
+      if (other) { other.value = ''; other.hidden = true; }
+      return;
+    }
+    row.remove();
+    renumberRouteRows_();
+  }
+
+  function renumberRouteRows_() {
+    document.querySelectorAll('#gttActRouteRows .gtt-act-route-row').forEach((row, index) => {
+      const number = row.querySelector('.gtt-act-route-number');
+      if (number) number.textContent = String(index + 1);
+    });
+  }
+
+  function populateDestinationSelect_(select) {
+    if (!select) return;
+    const selected = select.value;
+    const options = act.data && Array.isArray(act.data.destinations) ? act.data.destinations : [];
+    select.innerHTML = '<option value="">Pilih tujuan</option>';
+    options.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.code || '';
+      option.textContent = `${item.code || ''} - ${item.name || ''}`;
+      select.appendChild(option);
+    });
+    const other = document.createElement('option');
+    other.value = '__LAINNYA__';
+    other.textContent = 'Lainnya';
+    select.appendChild(other);
+    if ([...select.options].some(option => option.value === selected)) select.value = selected;
+  }
+
+  async function handleRouteChange_(select) {
+    const row = select.closest('.gtt-act-route-row');
+    if (!row) return;
+    const other = row.querySelector('.gtt-act-route-other');
+    if (other) {
+      other.hidden = select.value !== '__LAINNYA__';
+      if (select.value !== '__LAINNYA__') other.value = '';
+    }
+
+    if (!select.value || select.value === '__LAINNYA__') return;
+
+    const same = [...document.querySelectorAll('#gttActRouteRows .gtt-act-route-select')]
+      .filter(otherSelect => otherSelect !== select && otherSelect.value === select.value);
+
+    if (!same.length) return;
+    const accepted = await confirm_(
+      'Tujuan Sudah Dipilih',
+      `${select.value} sudah ada dalam daftar tujuan. Tambahkan ${select.value} sekali lagi?`,
+      'YA, TAMBAHKAN'
+    );
+    if (!accepted) select.value = '';
+  }
+
+  function populateFormApprovers_() {
+    const select = document.getElementById('gttActApproverSelect');
+    if (!select) return;
+    const selected = select.value;
+    const approvers = act.data && Array.isArray(act.data.approvers) ? act.data.approvers : [];
+    select.innerHTML = '<option value="">Pilih SL / SPV / Manager</option>';
+    approvers.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.saId || '';
+      option.textContent = `${item.nama || '-'} — ${item.jabatan || '-'}`;
+      select.appendChild(option);
+    });
+    if ([...select.options].some(option => option.value === selected)) select.value = selected;
+  }
+
+  function selectApprover_(approverId) {
+    populateFormApprovers_();
+    const select = document.getElementById('gttActApproverSelect');
+    if (select && [...select.options].some(option => option.value === approverId)) select.value = approverId;
+  }
+
+  function populatePendingApprover_(task) {
+    const select = document.getElementById('gttActPendingApprover');
+    if (!select) return;
+    const approvers = act.data && Array.isArray(act.data.approvers) ? act.data.approvers : [];
+    select.innerHTML = '<option value="">Pilih SL / SPV / Manager</option>';
+    approvers.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.saId || '';
+      option.textContent = `${item.nama || '-'} — ${item.jabatan || '-'}`;
+      select.appendChild(option);
+    });
+    if ([...select.options].some(option => option.value === task.approverId)) select.value = task.approverId;
+  }
+
+  function collectForm_() {
+    const route = [];
+    const rows = [...document.querySelectorAll('#gttActRouteRows .gtt-act-route-row')];
+    rows.forEach((row, index) => {
+      const select = row.querySelector('.gtt-act-route-select');
+      const other = row.querySelector('.gtt-act-route-other');
+      const value = select ? select.value : '';
+      if (!value) return;
+      if (value === '__LAINNYA__') {
+        route.push({ order: index + 1, type: 'OTHER', code: 'LAINNYA', name: String(other && other.value || '').trim() });
+      } else {
+        const option = select && select.options[select.selectedIndex];
+        route.push({ order: index + 1, type: 'OUTLET', code: value, name: option ? option.textContent : value });
+      }
+    });
+
+    const purpose = document.getElementById('gttActPurpose');
+    const approver = document.getElementById('gttActApproverSelect');
+    return {
+      route,
+      purpose: String(purpose && purpose.value || '').trim(),
+      approverId: String(approver && approver.value || '').trim()
+    };
+  }
+
+  function validateForm_(form) {
+    if (!form.route.length) throw new Error('Pilih minimal 1 tujuan Tugas Luar.');
+    form.route.forEach((item, index) => {
+      if (item.type === 'OTHER' && !String(item.name || '').trim()) {
+        throw new Error('Tujuan Lainnya pada urutan ' + (index + 1) + ' wajib diisi.');
+      }
+    });
+    if (!form.purpose) throw new Error('Keperluan Tugas Luar wajib diisi.');
+    if (!form.approverId) throw new Error('Pilih SL/SPV/Manager untuk persetujuan.');
+  }
+
+  async function submitRequest_() {
+    const form = collectForm_();
+    validateForm_(form);
+    const accepted = await confirm_(
+      'Kirim Persetujuan',
+      `Rute: ${form.route.map((item, i) => `${i + 1}. ${item.type === 'OTHER' ? item.name : item.code}`).join('  ')}\n\nKirim permintaan approval Tugas Luar?`,
+      'KIRIM'
+    );
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActSubmitApproval', [currentPin_(), form]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Permintaan gagal dikirim.');
+      act.editMode = false;
+      applyData_(response.data);
+      feedback_(response.message || 'Permintaan approval berhasil dikirim.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function updateRequest_() {
+    const current = act.data && act.data.currentTask;
+    if (!current) return;
+    const form = collectForm_();
+    validateForm_(form);
+    const accepted = await confirm_(
+      'Simpan Perubahan',
+      'Perubahan rute/keperluan akan membuat status kembali PENDING dan memerlukan approval ulang.',
+      'SIMPAN'
+    );
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActUpdateRequest', [currentPin_(), current.taskId, form]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Perubahan gagal disimpan.');
+      act.editMode = false;
+      applyData_(response.data);
+      feedback_(response.message || 'Data diperbarui.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function changeApprover_() {
+    const current = act.data && act.data.currentTask;
+    const select = document.getElementById('gttActPendingApprover');
+    const approverId = String(select && select.value || '').trim();
+    if (!current || !approverId) throw new Error('Pilih approver pengganti.');
+    if (approverId === current.approverId) throw new Error('Pilih approver yang berbeda dari approver sekarang.');
+
+    const accepted = await confirm_('Ganti Approver', 'Request ke approver lama akan dialihkan ke approver baru.', 'GANTI');
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActChangeApprover', [currentPin_(), current.taskId, approverId]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Approver gagal diganti.');
+      applyData_(response.data);
+      feedback_(response.message || 'Approver berhasil diganti.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  function beginEditCurrentTask_() {
+    const current = act.data && act.data.currentTask;
+    if (!current || current.status === 'IN_PROGRESS') return;
+    act.editMode = true;
+    renderMain_();
+  }
+
+  async function approveRequest_(taskId) {
+    const accepted = await confirm_('Setujui Tugas Luar', 'Anda menyetujui permintaan Tugas Luar ini dari akun GTT Anda sendiri.', 'SETUJUI');
+    if (!accepted) return;
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActApprove', [currentPin_(), taskId]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Approval gagal.');
+      applyData_(response.data);
+      feedback_(response.message || 'Tugas Luar disetujui.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function rejectRequest_(taskId) {
+    const accepted = await confirm_('Tolak Tugas Luar', 'Tolak permintaan Tugas Luar ini?', 'TOLAK');
+    if (!accepted) return;
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActReject', [currentPin_(), taskId]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Penolakan gagal diproses.');
+      applyData_(response.data);
+      feedback_(response.message || 'Permintaan ditolak.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function startTask_() {
+    const current = act.data && act.data.currentTask;
+    if (!current) return;
+
+    const myBreakActive = [...(act.data.team && act.data.team.break1 || []), ...(act.data.team && act.data.team.break2 || [])]
+      .some(item => String(item.pin || '') === currentPin_());
+    if (myBreakActive) throw new Error('Selesaikan Break terlebih dahulu sebelum memulai Tugas Luar.');
+
+    const accepted = await confirm_(
+      'Mulai Tugas Luar',
+      `Tugas Luar ${current.taskNo || ''}\nRute: ${current.routeLabel || '—'}\n\nGPS outlet asal akan divalidasi.`,
+      'MULAI'
+    );
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      feedback_('Memeriksa geofence outlet asal...', 'info');
+      const location = typeof getFreshLocationForAction_ === 'function'
+        ? await getFreshLocationForAction_()
+        : await getLocationFallback_();
+      const response = await api_('apiGttActStart', [currentPin_(), current.taskId, location]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Tugas Luar gagal dimulai.');
+      applyData_(response.data);
+      feedback_(response.message || 'Tugas Luar dimulai.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function finishTask_() {
+    const current = act.data && act.data.currentTask;
+    if (!current || current.status !== 'IN_PROGRESS') return;
+    const accepted = await confirm_(
+      'Selesaikan Tugas Luar',
+      `Pastikan Anda sudah kembali ke outlet ${act.data.user && act.data.user.outlet || ''}. GPS akan divalidasi sebelum tugas ditutup.`,
+      'YA, SELESAIKAN'
+    );
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      feedback_('Memeriksa geofence kembali...', 'info');
+      const location = typeof getFreshLocationForAction_ === 'function'
+        ? await getFreshLocationForAction_()
+        : await getLocationFallback_();
+      const response = await api_('apiGttActFinish', [currentPin_(), current.taskId, location]);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Tugas Luar gagal diselesaikan.');
+      act.editMode = false;
+      applyData_(response.data);
+      feedback_(response.message || 'Tugas Luar selesai.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  async function cancelTask_() {
+    const current = act.data && act.data.currentTask;
+    if (!current) return;
+    if (current.status === 'IN_PROGRESS') throw new Error('Tugas Luar yang sudah berjalan tidak dapat dibatalkan sendiri.');
+    const accepted = await confirm_(
+      current.status === 'PENDING_APPROVAL' ? 'Batalkan Permintaan' : 'Batalkan Tugas Luar',
+      'Data pembatalan tetap disimpan untuk audit.',
+      'YA, BATALKAN'
+    );
+    if (!accepted) return;
+
+    setBusy_(true);
+    try {
+      const response = await api_('apiGttActCancel', [currentPin_(), current.taskId, 'Dibatalkan oleh SA sebelum Tugas Luar dimulai.']);
+      if (!response || response.success !== true) throw new Error(response && response.message || 'Pembatalan gagal.');
+      act.editMode = false;
+      applyData_(response.data);
+      feedback_(response.message || 'Tugas Luar dibatalkan.', 'success');
+    } finally {
+      setBusy_(false);
+    }
+  }
+
+  function getLocationFallback_() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Perangkat tidak mendukung GPS.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({
+          latitude: Number(pos.coords.latitude),
+          longitude: Number(pos.coords.longitude),
+          accuracy: Number(pos.coords.accuracy),
+          timestamp: pos.timestamp || Date.now()
+        }),
+        () => reject(new Error('Lokasi tidak dapat diperoleh.')),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  function shortDateTime_(text) {
+    const value = String(text || '').trim();
+    if (!value) return '';
+    const match = value.match(/(\d{2}:\d{2}:\d{2})/);
+    return match ? match[1] : value;
+  }
+
+  function secondsNowFromBase_(base) {
+    const delta = Math.max(0, Math.floor((Date.now() - act.fetchedAtMs) / 1000));
+    return Math.max(0, Number(base || 0) + delta);
+  }
+
+  function formatHms_(seconds) {
+    const safe = Math.max(0, Math.floor(Number(seconds || 0)));
+    const h = Math.floor(safe / 3600);
+    const m = Math.floor((safe % 3600) / 60);
+    const s = safe % 60;
+    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+  }
+
+  function formatMinutes_(seconds) {
+    const minutes = Math.max(0, Math.floor(Number(seconds || 0) / 60));
+    return minutes + ' menit';
+  }
+
+  function liveMinutes_(baseSeconds) {
+    return Math.max(0, Math.floor(secondsNowFromBase_(baseSeconds) / 60));
+  }
+
+  function updateLiveTimers_() {
+    if (!act.data) return;
+    const current = act.data.currentTask;
+    if (current && current.status === 'IN_PROGRESS') {
+      const seconds = secondsNowFromBase_(current.elapsedSeconds || 0);
+      const currentDuration = document.getElementById('gttActCurrentDuration');
+      if (currentDuration) currentDuration.textContent = formatHms_(seconds);
+    }
+
+    document.querySelectorAll('[data-gtt-act-live]').forEach(el => {
+      const seconds = secondsNowFromBase_(Number(el.dataset.baseSeconds || 0));
+      el.textContent = formatMinutes_(seconds);
+    });
+
+    syncHomeMonitoring_();
+  }
+
+  function homeRouteItems_() {
+    const current = act.data && act.data.currentTask;
+    if (!current || current.status !== 'IN_PROGRESS') return [];
+    return Array.isArray(current.route) ? current.route : [];
+  }
+
+  function syncHomeMonitoring_() {
+    if (!act.data) return;
+    const current = act.data.currentTask;
+    const active = current && current.status === 'IN_PROGRESS';
+
+    const badge = document.getElementById('homeOutsideDutyActiveBadge');
+    if (badge && badge.hidden !== !active) badge.hidden = !active;
+
+    if (active) {
+      const since = document.getElementById('homeOutsideDutySince');
+      const duration = document.getElementById('homeOutsideDutyDuration');
+      if (since) since.textContent = String(current.startTime || '--:--').slice(0, 5);
+      if (duration) duration.textContent = formatHms_(secondsNowFromBase_(current.elapsedSeconds || 0));
+    }
+
+    const teamCount = act.data.team && Array.isArray(act.data.team.outside) ? act.data.team.outside.length : 0;
+    const homeCount = document.getElementById('homeOutsideSummary');
+    if (homeCount) {
+      const desiredCount = teamCount ? `${teamCount} SA sedang keluar` : 'Tidak ada SA keluar';
+      if (homeCount.textContent !== desiredCount) homeCount.textContent = desiredCount;
+    }
+
+    const value = document.getElementById('homeOutsideDurationSummary');
+    if (value) {
+      const card = value.closest('.home-summary-item');
+      const label = card && card.querySelector('span');
+      if (label) label.textContent = 'Rute Tugas Luar Aktif';
+
+      const routes = homeRouteItems_();
+      const maxVisible = 3;
+      const shown = routes.slice(0, maxVisible);
+      const html = shown.length
+        ? `<span id="gttActHomeRouteValue">${shown.map((item, index) => {
+            const name = item.type === 'OTHER' ? item.name : (item.code || item.display || item.name);
+            return `<span>${index + 1}. ${esc_(name || '—')}</span>`;
+          }).join('')}${routes.length > maxVisible ? `<span>+${routes.length - maxVisible} tujuan</span>` : ''}</span>`
+        : '<span id="gttActHomeRouteValue"><span>Tidak ada</span></span>';
+      if (value.innerHTML !== html) value.innerHTML = html;
+    }
+  }
+
+  function bindHomeObservers_() {
+    if (act.homeObserversBound) return;
+    act.homeObserversBound = true;
+
+    const routeValue = document.getElementById('homeOutsideDurationSummary');
+    const countValue = document.getElementById('homeOutsideSummary');
+    const badge = document.getElementById('homeOutsideDutyActiveBadge');
+
+    const observer = new MutationObserver(() => {
+      if (act.data) window.setTimeout(syncHomeMonitoring_, 0);
+    });
+    if (routeValue) observer.observe(routeValue, { childList: true, subtree: true, characterData: true });
+    if (countValue) observer.observe(countValue, { childList: true, subtree: true, characterData: true });
+    if (badge) observer.observe(badge, { attributes: true, attributeFilter: ['hidden'] });
+  }
+
+  function bindOperationalConflictGuard_() {
+    document.addEventListener('click', event => {
+      const current = act.data && act.data.currentTask;
+      if (!current || current.status !== 'IN_PROGRESS') return;
+
+      const target = event.target && event.target.closest
+        ? event.target.closest('#saPulangButton, #saMainActionButton, [id^="breakSession"][id$="Button"]')
+        : null;
+      if (!target) return;
+
+      const id = target.id || '';
+      const actionCode = String(target.dataset && target.dataset.actionCode || '').toUpperCase();
+      const isPulang = id === 'saPulangButton' || actionCode === 'ABSEN_PULANG';
+      const isBreak = id.indexOf('breakSession') === 0 || actionCode.indexOf('BREAK') !== -1;
+
+      if (!isPulang && !isBreak) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      feedback_(
+        isPulang
+          ? 'Selesaikan Tugas Luar terlebih dahulu sebelum Absen Pulang.'
+          : 'Break tidak dapat dimulai saat Tugas Luar masih berlangsung.',
+        'warning'
+      );
+    }, true);
+  }
+
+  function configurePolling_() {
+    stopPolling_();
+    if (!act.data) return;
+
+    const current = act.data && act.data.currentTask;
+    const interval = current && current.status === 'PENDING_APPROVAL'
+      ? REFRESH_PENDING_MS
+      : REFRESH_VISIBLE_MS;
+
+    act.pollingId = window.setInterval(() => {
+      if (document.hidden || act.busy || act.bootstrapInFlight || !currentPin_() || !act.data) return;
+      const view = document.getElementById('saOutsideDutyView');
+      const pending = act.data && act.data.currentTask && act.data.currentTask.status === 'PENDING_APPROVAL';
+      if (pending || (view && !view.hidden)) refresh_(false);
+    }, interval);
+  }
+
+  function startTick_() {
+    if (act.tickId) return;
+    act.tickId = window.setInterval(updateLiveTimers_, 1000);
+  }
+
+  function startSessionWatcher_() {
+    if (act.sessionWatchId) return;
+    act.sessionWatchId = window.setInterval(() => {
+      const pin = currentPin_();
+      const user = currentUser_();
+
+      if (!pin || !user) {
+        if (act.lastPin || act.lastAttemptPin) {
+          act.lastPin = '';
+          act.lastAttemptPin = '';
+          act.bootstrapError = '';
+          act.bootstrapFailureCount = 0;
+          act.data = null;
+          act.editMode = false;
+          stopPolling_();
+        }
+        return;
+      }
+
+      // Rev-1: hanya bootstrap sekali untuk satu sesi baru.
+      // Jika gagal, layar menampilkan COBA LAGI dan tidak membombardir server tiap 1,5 detik.
+      if (pin !== act.lastPin && pin !== act.lastAttemptPin && !act.bootstrapInFlight) {
+        refresh_(false);
+      }
+    }, 1500);
+  }
+
+  function bindActivityOpenRefresh_() {
+    document.addEventListener('click', event => {
+      const button = event.target && event.target.closest
+        ? event.target.closest('[data-sa-tab="outside"], [data-open-sa-tab="outside"]')
+        : null;
+      if (!button) return;
+      window.setTimeout(() => {
+        if (!act.bootstrapInFlight) refresh_(false);
+      }, 80);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && currentPin_() && act.data && !act.bootstrapInFlight) refresh_(false);
+    });
+  }
+
+  function init_() {
+    if (act.initialized) return;
+    act.initialized = true;
+    ensureWorkspace_();
+    ensureVersionModule_();
+    bindHomeObservers_();
+    bindOperationalConflictGuard_();
+    bindActivityOpenRefresh_();
+    startTick_();
+    startSessionWatcher_();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init_, { once: true });
+  } else {
+    init_();
+  }
+})();
+</script>

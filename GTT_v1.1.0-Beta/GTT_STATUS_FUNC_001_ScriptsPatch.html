@@ -1,0 +1,431 @@
+<!--
+  ============================================================
+  GTT V1.1.0-ALPHA (STATUS_FUNC_001)
+  FILE PATCH: Scripts.html
+  CARA PASANG:
+  Tempel BLOK <script> ini SETELAH include Scripts existing
+  atau tempel isi JavaScript-nya tepat sebelum </script> terakhir.
+
+  TIDAK perlu mengubah Index.html.
+  TIDAK perlu mengubah Stylesheet.html.
+  Tombol existing tetap memakai: #profilePhotoCaptureButton
+  Hero existing tetap memakai: #homeProfilePhoto
+  Placeholder existing: #homeProfilePhotoPlaceholder
+
+  FOTO:
+  - Tidak remove background.
+  - Tidak mengganti background.
+  - Tidak melakukan crop pada file sumber.
+  - Hanya downscale proporsional + kompres JPEG untuk efisiensi upload.
+  ============================================================
+-->
+<script>
+(() => {
+  const PHOTO_MAX_SIDE = 1280;
+  const PHOTO_JPEG_QUALITY = 0.84;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    bindProfilePhotoCaptureStatusFunc001_();
+  });
+
+  // Hook additive: layout/core existing tetap dijalankan lebih dulu.
+  if (typeof populateSaDashboard === 'function') {
+    const originalPopulateSaDashboardStatusFunc001_ = populateSaDashboard;
+
+    populateSaDashboard = function(user) {
+      originalPopulateSaDashboardStatusFunc001_(user);
+
+      window.setTimeout(() => {
+        loadHomeProfilePhotoStatusFunc001_();
+      }, 0);
+    };
+  }
+
+
+  function bindProfilePhotoCaptureStatusFunc001_() {
+    const button = document.getElementById('profilePhotoCaptureButton');
+
+    if (!button || button.dataset.photoFunc001Bound === '1') {
+      return;
+    }
+
+    button.dataset.photoFunc001Bound = '1';
+
+    button.addEventListener('click', () => {
+      if (!isPhotoSessionReadyStatusFunc001_()) {
+        showPhotoDialogStatusFunc001_(
+          'Sesi Tidak Aktif',
+          'Silakan login kembali sebelum mengambil foto.',
+          'warning'
+        );
+        return;
+      }
+
+      if (!navigator.onLine) {
+        showPhotoDialogStatusFunc001_(
+          'Tidak Ada Internet',
+          'Foto memerlukan koneksi internet untuk disimpan ke Google Drive.',
+          'warning'
+        );
+        return;
+      }
+
+      openNativeCameraStatusFunc001_();
+    });
+  }
+
+
+  function isPhotoSessionReadyStatusFunc001_() {
+    return Boolean(
+      typeof state !== 'undefined' &&
+      state.user &&
+      state.user.role === 'SA' &&
+      state.user.saId &&
+      /^\d{4}$/.test(String(state.pin || ''))
+    );
+  }
+
+
+  function openNativeCameraStatusFunc001_() {
+    const oldInput = document.getElementById('gttProfilePhotoInputFunc001');
+
+    if (oldInput) {
+      oldInput.remove();
+    }
+
+    // Input dibuat dinamis agar Index.html yang sudah LOCK tidak perlu disentuh.
+    const input = document.createElement('input');
+    input.id = 'gttProfilePhotoInputFunc001';
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/*';
+
+    // Profil SA: browser/HP yang mendukung akan diarahkan ke kamera depan.
+    // Bila browser tidak mendukung "capture", file picker normal tetap bekerja.
+    input.setAttribute('capture', 'user');
+
+    input.hidden = true;
+    document.body.appendChild(input);
+
+    input.addEventListener(
+      'change',
+      async () => {
+        try {
+          const file = input.files && input.files[0];
+
+          if (!file) {
+            return;
+          }
+
+          if (!/^image\/(jpeg|png)$/i.test(file.type)) {
+            showPhotoDialogStatusFunc001_(
+              'Format Tidak Didukung',
+              'Gunakan foto JPG atau PNG.',
+              'warning'
+            );
+            return;
+          }
+
+          setPhotoButtonBusyStatusFunc001_(true);
+
+          // Tidak ada crop/background replacement.
+          // Rasio foto asli dipertahankan.
+          const dataUrl = await compressPhotoWithoutCropStatusFunc001_(file);
+
+          uploadProfilePhotoStatusFunc001_(dataUrl);
+
+        } catch (error) {
+          console.error('STATUS_FUNC_001 camera:', error);
+          setPhotoButtonBusyStatusFunc001_(false);
+
+          showPhotoDialogStatusFunc001_(
+            'Foto Tidak Berhasil',
+            error && error.message
+              ? error.message
+              : 'Foto tidak dapat diproses. Silakan ambil ulang.',
+            'error'
+          );
+
+        } finally {
+          input.remove();
+        }
+      },
+      { once: true }
+    );
+
+    input.click();
+  }
+
+
+  function compressPhotoWithoutCropStatusFunc001_(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        reject(new Error('File foto tidak dapat dibaca.'));
+      };
+
+      reader.onload = () => {
+        const image = new Image();
+
+        image.onerror = () => {
+          reject(new Error('Foto tidak dapat diproses.'));
+        };
+
+        image.onload = () => {
+          const sourceWidth = image.naturalWidth || image.width;
+          const sourceHeight = image.naturalHeight || image.height;
+
+          if (!sourceWidth || !sourceHeight) {
+            reject(new Error('Ukuran foto tidak valid.'));
+            return;
+          }
+
+          const scale = Math.min(
+            1,
+            PHOTO_MAX_SIDE / Math.max(sourceWidth, sourceHeight)
+          );
+
+          // Proporsional: tidak crop. Seluruh background foto asli tetap disimpan.
+          const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+          const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+
+          const context = canvas.getContext('2d', {
+            alpha: false
+          });
+
+          if (!context) {
+            reject(new Error('Browser tidak mendukung pemrosesan foto.'));
+            return;
+          }
+
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = 'high';
+
+          // Tidak ada fill background, blur, mask, crop, atau penggantian scene.
+          context.drawImage(
+            image,
+            0,
+            0,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            targetWidth,
+            targetHeight
+          );
+
+          resolve(
+            canvas.toDataURL(
+              'image/jpeg',
+              PHOTO_JPEG_QUALITY
+            )
+          );
+        };
+
+        image.src = String(reader.result || '');
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+
+  function uploadProfilePhotoStatusFunc001_(dataUrl) {
+    if (
+      typeof google === 'undefined' ||
+      !google.script ||
+      !google.script.run
+    ) {
+      setPhotoButtonBusyStatusFunc001_(false);
+
+      showPhotoDialogStatusFunc001_(
+        'Web App Diperlukan',
+        'Fungsi foto harus dijalankan melalui URL Web App GTT.',
+        'error'
+      );
+      return;
+    }
+
+    const payload = {
+      saId: String(state.user.saId || '').trim(),
+      pin: String(state.pin || '').trim(),
+      base64Image: dataUrl,
+      timestamp: Date.now()
+    };
+
+    google.script.run
+      .withSuccessHandler(result => {
+        setPhotoButtonBusyStatusFunc001_(false);
+
+        if (!result || result.success !== true || !result.data) {
+          showPhotoDialogStatusFunc001_(
+            'Foto Gagal Disimpan',
+            result && result.message
+              ? result.message
+              : 'Server tidak dapat menyimpan foto.',
+            'error'
+          );
+          return;
+        }
+
+        // Update hero instan tanpa reload seluruh GTT.
+        setHomeProfilePhotoStatusFunc001_(result.data.dataUrl);
+
+        // Sinkronkan data user lokal bila dibutuhkan proses berikutnya.
+        if (state.user) {
+          state.user.photoFileId = result.data.fileId || '';
+        }
+
+        showPhotoDialogStatusFunc001_(
+          'Foto Profil Tersimpan',
+          'Foto berhasil disimpan dan sudah digunakan pada Hero Beranda.',
+          'success'
+        );
+      })
+      .withFailureHandler(error => {
+        setPhotoButtonBusyStatusFunc001_(false);
+
+        console.error('STATUS_FUNC_001 upload:', error);
+
+        showPhotoDialogStatusFunc001_(
+          'Foto Gagal Disimpan',
+          error && error.message
+            ? error.message
+            : 'Server tidak dapat menyimpan foto.',
+          'error'
+        );
+      })
+      .uploadProfilePhotoGttStatusFunc001(payload);
+  }
+
+
+  function loadHomeProfilePhotoStatusFunc001_() {
+    if (!isPhotoSessionReadyStatusFunc001_()) {
+      showHomeProfilePlaceholderStatusFunc001_();
+      return;
+    }
+
+    if (
+      typeof google === 'undefined' ||
+      !google.script ||
+      !google.script.run ||
+      typeof getHomeProfilePhotoGttAlpha === 'undefined'
+    ) {
+      // Catatan:
+      // getHomeProfilePhotoGttAlpha adalah fungsi GAS backend, sehingga
+      // pemeriksaan typeof di browser tidak bisa mendeteksi server function.
+      // Kita tetap melakukan request jika google.script.run tersedia.
+    }
+
+    if (
+      typeof google === 'undefined' ||
+      !google.script ||
+      !google.script.run
+    ) {
+      showHomeProfilePlaceholderStatusFunc001_();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (result && result.success === true && result.dataUrl) {
+          setHomeProfilePhotoStatusFunc001_(result.dataUrl);
+          return;
+        }
+
+        showHomeProfilePlaceholderStatusFunc001_();
+      })
+      .withFailureHandler(error => {
+        console.warn('STATUS_FUNC_001 load home photo:', error);
+        showHomeProfilePlaceholderStatusFunc001_();
+      })
+      .getHomeProfilePhotoGttAlpha(String(state.user.saId || '').trim());
+  }
+
+
+  function setHomeProfilePhotoStatusFunc001_(dataUrl) {
+    const image = document.getElementById('homeProfilePhoto');
+    const placeholder = document.getElementById('homeProfilePhotoPlaceholder');
+
+    if (!image) {
+      return;
+    }
+
+    image.onload = () => {
+      image.hidden = false;
+
+      if (placeholder) {
+        placeholder.hidden = true;
+      }
+    };
+
+    image.onerror = () => {
+      showHomeProfilePlaceholderStatusFunc001_();
+    };
+
+    image.src = String(dataUrl || '');
+  }
+
+
+  function showHomeProfilePlaceholderStatusFunc001_() {
+    const image = document.getElementById('homeProfilePhoto');
+    const placeholder = document.getElementById('homeProfilePhotoPlaceholder');
+
+    if (image) {
+      image.hidden = true;
+      image.removeAttribute('src');
+    }
+
+    if (placeholder) {
+      placeholder.hidden = false;
+    }
+  }
+
+
+  function setPhotoButtonBusyStatusFunc001_(busy) {
+    const button = document.getElementById('profilePhotoCaptureButton');
+
+    if (!button) {
+      return;
+    }
+
+    if (busy) {
+      if (!button.dataset.originalPhotoHtml) {
+        button.dataset.originalPhotoHtml = button.innerHTML;
+      }
+
+      button.disabled = true;
+      button.innerHTML = '<span>Memproses Foto...</span>';
+      return;
+    }
+
+    button.disabled = false;
+
+    if (button.dataset.originalPhotoHtml) {
+      button.innerHTML = button.dataset.originalPhotoHtml;
+      delete button.dataset.originalPhotoHtml;
+    }
+  }
+
+
+  function showPhotoDialogStatusFunc001_(title, message, type) {
+    if (typeof showGttDialog === 'function') {
+      showGttDialog({
+        title: title,
+        message: message,
+        type: type || 'success',
+        buttonText: 'MENGERTI'
+      });
+      return;
+    }
+
+    // Fallback hanya jika dialog GTT existing tidak tersedia.
+    console.log(`${title}: ${message}`);
+  }
+
+})();
+</script>

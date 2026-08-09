@@ -1,0 +1,154 @@
+<script>
+  /**
+   * GTT Dashboard SA v3.2 — bugfix ringkasan pelanggaran.
+   *
+   * Sumber utama adalah operasional.totalOvertime karena nilai tersebut
+   * berasal dari Break Engine dan sudah termasuk overtime Break 1 + Break 2.
+   * Struktur ringkasan lama tetap didukung sebagai fallback.
+   */
+  (() => {
+    const previousRenderSaDashboardV32 = renderSaDashboard;
+
+    renderSaDashboard = function (payload) {
+      previousRenderSaDashboardV32(payload);
+      updateViolationSummaryV32(payload || {});
+    };
+
+    function updateViolationSummaryV32(payload) {
+      const operational = payload.operasional || {};
+      const breakData = payload.break || {};
+      const summary = payload.ringkasan || {};
+      const dashboard = payload.dashboard || {};
+      const violation =
+        summary.pelanggaran ||
+        dashboard.pelanggaran ||
+        (dashboard.ringkasan || {}).pelanggaran ||
+        {};
+
+      const totalOvertime = resolveTotalOvertimeV32(
+        operational,
+        breakData,
+        violation
+      );
+
+      const violationCount = resolveViolationCountV32(
+        totalOvertime,
+        breakData,
+        violation
+      );
+
+      const text = totalOvertime > 0
+        ? `${Math.max(violationCount, 1)} tercatat · ${formatMinuteV32(totalOvertime)} menit`
+        : `${violationCount} tercatat`;
+
+      setText('homeViolationSummary', text);
+
+      const summaryElement = document.getElementById('homeViolationSummary');
+      const summaryCard = summaryElement
+        ? summaryElement.closest('.home-summary-item')
+        : null;
+
+      if (summaryCard) {
+        summaryCard.classList.toggle('has-violation', violationCount > 0);
+        summaryCard.setAttribute(
+          'aria-label',
+          violationCount > 0
+            ? `Pelanggaran: ${text}`
+            : 'Pelanggaran: tidak ada pelanggaran tercatat'
+        );
+      }
+    }
+
+    function resolveTotalOvertimeV32(operational, breakData, violation) {
+      const directValue = firstNumberV32([
+        operational.totalOvertime,
+        operational.totalOvertimeMenit,
+        violation.totalOvertime,
+        violation.totalOvertimeMenit,
+        violation.overtime,
+        breakData.totalOvertime,
+        breakData.totalOvertimeMenit
+      ]);
+
+      const sessionTotal = [1, 2].reduce((total, sessionNumber) => {
+        const session = breakData[`break${sessionNumber}`] || {};
+        const overtime = firstNumberV32([
+          session.overtime,
+          session.overtimeMenit,
+          session.totalOvertime,
+          session.durasiOvertime,
+          session.menitOvertime
+        ]);
+
+        return total + Math.max(0, overtime || 0);
+      }, 0);
+
+      return Math.max(0, directValue || 0, sessionTotal);
+    }
+
+    function resolveViolationCountV32(totalOvertime, breakData, violation) {
+      const explicitCount = firstNumberV32([
+        violation.jumlah,
+        violation.total,
+        violation.jumlahPelanggaran
+      ]);
+
+      if (explicitCount !== null && explicitCount > 0) {
+        return Math.floor(explicitCount);
+      }
+
+      const sessionCount = [1, 2].reduce((count, sessionNumber) => {
+        const session = breakData[`break${sessionNumber}`] || {};
+        const overtime = firstNumberV32([
+          session.overtime,
+          session.overtimeMenit,
+          session.totalOvertime,
+          session.durasiOvertime,
+          session.menitOvertime
+        ]) || 0;
+        const status = String(
+          session.statusDurasi || session.status || ''
+        ).trim().toUpperCase();
+        const overbreak =
+          overtime > 0 ||
+          status === 'OVERBREAK' ||
+          status === 'OVERTIME' ||
+          status.indexOf('OVER BREAK') !== -1;
+
+        return count + Number(overbreak);
+      }, 0);
+
+      if (sessionCount > 0) {
+        return sessionCount;
+      }
+
+      return totalOvertime > 0 ? 1 : 0;
+    }
+
+    function firstNumberV32(values) {
+      for (const value of values) {
+        if (value === null || value === undefined || value === '') {
+          continue;
+        }
+
+        const normalized = typeof value === 'string'
+          ? value.trim().replace(',', '.')
+          : value;
+        const number = Number(normalized);
+
+        if (Number.isFinite(number)) {
+          return number;
+        }
+      }
+
+      return null;
+    }
+
+    function formatMinuteV32(value) {
+      const number = Math.max(0, Number(value) || 0);
+      return Number.isInteger(number)
+        ? String(number)
+        : number.toFixed(1).replace('.', ',');
+    }
+  })();
+</script>
